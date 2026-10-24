@@ -1,106 +1,111 @@
-# Xteink スリープ画像コンバータ
+# Xteink Sleep Image Converter
 
-Xteink X3 / X4 のスリープ画面に表示する画像を作るブラウザ用ツールです。
-画像を切り抜いて 4 階調のグレースケールに変換し、カレンダーを重ねて BMP または XTCH で保存します。
-処理はすべてブラウザ内で完結し、画像は外部に送信されません（Google Fonts のフォントファイルの取得のみ通信します）。
+**English** | [日本語](README.ja.md)
 
-## 機能
+A browser tool for making sleep-screen images for the Xteink X3 / X4.
+It crops an image, converts it to 4-level grayscale, optionally draws a calendar on top, and saves the result as BMP or XTCH.
+Everything runs in the browser and your images are never uploaded. The only network traffic is fetching font files from Google Fonts.
 
-- **機種と向き**: X3（528×792）/ X4（480×800）、縦向き・横向き
-  - 横向きは「右に倒す / 左に倒す」の持ち方に合わせて 90° 回転し、端末の縦向きの画素並びで保存します
-- **切り抜き**: ドラッグで移動、ホイールまたはスライダーで拡大・縮小、90° 回転、左右反転、全体表示（余白の色を選択）
-- **画質**: 自動レベル補正、明るさ、コントラスト、ガンマ、シャープ、白黒反転
-- **4 階調化**: Floyd–Steinberg / Atkinson / Stucki / Bayer / なし。ディザの強さと往復走査を調整できます
-- **保存形式**
-  - BMP: 8bit（既定）/ 4bit / 2bit / 24bit。パレットは端末のネイティブ階調（0, 85, 170, 255）
-  - XTCH: 1 ページだけの XTC コンテナ（2bit の XTH ページ）
-- **カレンダー**
-  - 日曜始まり / 月曜始まり、年月の切り替え、日本の祝日（振替休日・国民の休日を含む）
-  - フォント: ゴシック・明朝・丸ゴシック・手書き/デザイン・欧文の Google Fonts 20 種、システムフォント、手元のフォントファイル（.ttf / .otf / .woff / .woff2）
-  - 見出しの書式（2026年11月、令和8年11月、NOVEMBER 2026 など）、曜日の表記、文字の大きさ、行の高さ
-  - 文字・日曜祝日・土曜・前後の月・罫線の色（4 階調から選択）
-  - 背景パネル（色・不透明度・角丸）、文字の縁取り、アンチエイリアスなしの描画
-  - プレビュー上のドラッグで位置を調整
+## Features
 
-## 使い方
+- **Device and orientation**: X3 (528×792) / X4 (480×800), portrait or landscape
+  - In landscape, the image is rotated 90° to match how you hold the device (turned right or turned left) and saved in the device's native portrait pixel order
+- **Cropping**: drag to move, scroll or use the slider to zoom, rotate in 90° steps, flip, or show the whole image with a margin color of your choice
+- **Tone**: auto levels, brightness, contrast, gamma, sharpen, invert
+- **4-level conversion**: Floyd–Steinberg / Atkinson / Stucki / Bayer / none, with adjustable strength and serpentine scanning
+- **Output formats**
+  - BMP: 8-bit (default) / 4-bit / 2-bit / 24-bit. The palette uses the panel's native gray levels (0, 85, 170, 255)
+  - XTCH: an XTC container holding a single page (a 2-bit XTH page)
+- **Calendar**
+  - Week starting on Sunday or Monday, any month, and Japanese public holidays (including substitute and "sandwiched" holidays)
+  - Fonts: 20 Google Fonts across gothic (sans-serif), mincho (serif), rounded, handwriting/display and Latin styles, system fonts, or your own font file (.ttf / .otf / .woff / .woff2)
+  - Heading format (2026年11月, 令和8年11月, NOVEMBER 2026, and more), weekday labels, text sizes, row height
+  - Colors for text, Sundays and holidays, Saturdays, adjacent months and grid lines (chosen from the 4 gray levels)
+  - Background panel (color, opacity, corner radius), text outline, and text without anti-aliasing
+  - Drag the calendar on the preview to position it
+- **UI language**: switch between English and Japanese at the top right. The first visit follows your browser's language, and your choice is remembered
+  - Switching changes only the interface text. The calendar's heading and weekday formats stay as you set them (only their defaults follow the language)
+
+## Usage
 
 ```bash
 npm install
 npm run dev
 ```
 
-ブラウザで表示された URL を開きます。静的ファイルとして配信する場合は次のコマンドで `dist/` に出力されます（相対パスで出力するので、GitHub Pages などのサブディレクトリにそのまま置けます）。
+Open the URL that Vite prints. To build static files into `dist/` (paths are relative, so you can host it from a subdirectory such as GitHub Pages):
 
 ```bash
 npm run build
 ```
 
-テストと型チェック:
+Tests and type-checking:
 
 ```bash
 npm test
 npm run typecheck
 ```
 
-### 端末への置き方
+### Putting the image on the device
 
-- **純正ファームウェア**: 決まったファイル名はなく、ファイルブラウザから画像を選んでスリープ画像に設定します
-- **CrossPoint Reader**: SD カード直下の `sleep.bmp`、または `/sleep`・`/.sleep` フォルダの BMP からランダムに選ばれます。通常のスリープ画像として読まれるのは BMP だけなので、XTCH は使えません
+- **Stock firmware**: there's no fixed file name. Pick the image in the file browser and set it as the sleep image
+- **CrossPoint Reader**: it uses `sleep.bmp` at the root of the SD card, or picks a random BMP from the `/sleep` or `/.sleep` folder. Only BMP files are read as regular sleep images, so XTCH won't work there
 
-## ファイル形式のメモ
+## File format notes
 
 ### BMP
 
-- 非圧縮、ボトムアップ。8bit / 4bit / 2bit はパレット形式で、インデックス 0〜3 に黒・濃いグレー・薄いグレー・白を入れ、残りは黒で埋めています
-- CrossPoint はパレットがネイティブ階調だけで構成されていると再ディザリングせずにそのまま表示します（`lib/GfxRenderer/Bitmap.cpp`）。24bit は端末側で再度減色されます
-- 2bit BMP は規格上はあるものの対応ソフトが少ないので、互換性を重視するなら 8bit を使ってください
+- Uncompressed and stored bottom-up. The 8-bit, 4-bit and 2-bit variants are palettized: indices 0–3 hold black, dark gray, light gray and white, and the remaining entries are filled with black
+- CrossPoint shows palettes made only of native gray levels as-is, without dithering them again (`lib/GfxRenderer/Bitmap.cpp`). 24-bit images are re-quantized on the device
+- 2-bit BMP is part of the format but few programs support it, so use 8-bit if compatibility matters
 
 ### XTCH
 
-[仕様](https://gist.github.com/CrazyCoder/b125f26d6987c0620058249f59f1327d) を、[CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) の `lib/Xtc` と [EPUB2XTC](https://github.com/Rafal-P-Mazur/EPUB2XTC) の書き出し処理に突き合わせて実装しています。
+Implemented from the [specification](https://gist.github.com/CrazyCoder/b125f26d6987c0620058249f59f1327d) and checked against the `lib/Xtc` code in [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) and the writer in [EPUB2XTC](https://github.com/Rafal-P-Mazur/EPUB2XTC).
 
-- 56 バイトのヘッダ → 256 バイトのメタデータ → 16 バイトのページインデックス → XTH ページ（22 バイトのヘッダ + ビットプレーン 2 枚）
-- version は uint16 の `0x0100`（バイト列 `00 01`）。仕様と EPUB2XTC に合わせました。CrossPoint はバイトを入れ替えた並びも受け付けます
-- XTH の画素値は **0 = 白, 1 = 濃いグレー, 2 = 薄いグレー, 3 = 黒**（グレー 2 色の順序が明るさ順ではない）
-- 列優先で右端の列から並べ、1 バイトに縦 8 画素（MSB が上）。1 枚目のプレーンに上位ビット、2 枚目に下位ビット
-- 1 列ごとに `ceil(高さ / 8)` バイト。X3 / X4 の高さはどちらも 8 の倍数なので、仕様の `(幅×高さ+7)/8` と同じ値になります
+- 56-byte header → 256-byte metadata → 16-byte page index → XTH page (22-byte header + two bit planes)
+- The version is written as uint16 `0x0100` (bytes `00 01`), matching the spec and EPUB2XTC. CrossPoint also accepts the byte-swapped order
+- XTH pixel values are **0 = white, 1 = dark gray, 2 = light gray, 3 = black**. The two grays are not in brightness order
+- Pixels are column-major starting from the rightmost column, with 8 vertical pixels per byte (MSB on top). The first plane holds the high bit and the second plane the low bit
+- Each column takes `ceil(height / 8)` bytes. The X3 and X4 heights are both multiples of 8, so this equals the spec's `(width × height + 7) / 8`
 
-テスト（`tests/encode.test.ts`）では、CrossPoint と同じ読み方のデコーダで全画素が元に戻ることを確認しています。**実機での表示はまだ確認していません。**
+The tests (`tests/encode.test.ts`) check that every pixel round-trips through a decoder that reads the files the same way CrossPoint does. **The output hasn't been tested on a real device yet.**
 
-## 技術選定: 画像処理は TypeScript のみ
+## Why the image processing is TypeScript only
 
-Rust + wasm も検討しましたが、この規模なら TypeScript だけで十分と判断しました。
+Rust + wasm was considered, but TypeScript alone is enough at this scale.
 
-- **処理量が小さい**: 出力は最大 528×792 ≈ 42 万画素で、ディザリングは画素ごとに 1 回なめるだけです。実測（Chromium、テスト画像 2400×1600 から X3 縦向き）で、配置・グレースケール化・トーン補正・ディザリング・カレンダー合成までの 1 フレームが Floyd–Steinberg で約 12ms、Stucki で約 15ms、ディザなしで約 6ms でした。ドラッグ中も毎フレーム全体を描き直せます
-- **重い処理はブラウザがやる**: 拡大縮小・回転は Canvas の `drawImage`、文字の描画は Canvas のテキスト描画で、どちらもネイティブ実装です。カレンダーの日本語フォントのラスタライズを wasm 側でやるのは割に合いません
-- **wasm にしても伸びしろが小さい**: wasm 化で速くなるのはディザリングの数 ms 程度で、その分 RGBA の受け渡し（約 1.7MB）とビルド構成（wasm-pack、バンドラ連携、2 言語のデバッグ）が増えます
-- **後から差し替えやすくしてある**: 画像処理（`src/image/`）とエンコーダ（`src/encode/`）は DOM に依存しない純粋な関数（型付き配列を受け取って型付き配列を返す）にしてあるので、必要になったらこの部分だけ Rust に置き換えられます
+- **The workload is small**: the output is at most 528×792 ≈ 420k pixels, and dithering is a single pass over them. Measured in Chromium (a 2400×1600 test image to X3 portrait), one full frame — placement, grayscale, tone, dithering and calendar compositing — takes about 12 ms with Floyd–Steinberg, about 15 ms with Stucki, and about 6 ms without dithering. The whole image is redrawn on every frame while dragging
+- **The browser does the heavy lifting**: scaling and rotation use Canvas `drawImage`, and text uses Canvas text rendering, both native. Rasterizing Japanese fonts for the calendar inside wasm wouldn't be worth it
+- **wasm wouldn't gain much**: it would speed up only the few milliseconds of dithering, at the cost of copying RGBA data back and forth (about 1.7 MB) and a heavier build (wasm-pack, bundler integration, debugging across two languages)
+- **It's easy to swap later**: image processing (`src/image/`) and the encoders (`src/encode/`) are pure functions that take and return typed arrays with no DOM dependency, so just that part could be replaced with Rust if needed
 
-Rust / wasm を検討し直す価値があるのは、たとえば次のような場合です。
+Rust / wasm would be worth revisiting if, for example, you want to:
 
-- 同じ変換処理を CLI やバッチ処理（大量の画像の一括変換）でも使いたい
-- 誤差拡散を知覚的な色空間で行うなど、画素あたりの計算が大幅に増える処理を入れたい
-- 数千万画素級の元画像を、Canvas に頼らない高品質なフィルタ（Lanczos など）で縮小したい
+- reuse the same conversion in a CLI or batch tool (converting many images at once)
+- add processing that costs much more per pixel, such as error diffusion in a perceptual color space
+- downscale sources with tens of megapixels using a high-quality filter (such as Lanczos) instead of relying on Canvas
 
-## 構成
+## Project layout
 
 ```
 src/
-  main.ts            画面の操作と描画の制御
-  state.ts           設定の既定値・保存（localStorage）・カレンダーの配置
-  devices.ts         機種ごとの解像度
-  fonts.ts           フォントのプリセットと読み込み
-  ui/bind.ts         data-bind 属性で入力欄と設定を結び付ける
-  render/source.ts   読み込んだ画像の配置と段階的な縮小
-  render/pipeline.ts 画像 → 4 階調 → カレンダー合成 → 端末の向きへの回転
-  image/             トーン補正・ディザリング・回転（DOM 非依存）
-  encode/            BMP・XTCH のエンコーダ（DOM 非依存）
-  calendar/          祝日計算・月のグリッド・カレンダーの描画
-tests/               Vitest のテスト
+  main.ts            UI wiring and render scheduling
+  state.ts           Default settings, persistence (localStorage), calendar placement
+  devices.ts         Resolution of each device
+  fonts.ts           Font presets and loading
+  i18n.ts            UI strings (English and Japanese) and language switching
+  ui/bind.ts         Binds inputs to settings through data-bind attributes
+  render/source.ts   Placement of the loaded image and progressive downscaling
+  render/pipeline.ts Image → 4 levels → calendar compositing → rotation to the device orientation
+  image/             Tone adjustment, dithering, rotation (no DOM dependency)
+  encode/            BMP and XTCH encoders (no DOM dependency)
+  calendar/          Holiday calculation, month grid, calendar drawing
+tests/               Vitest tests
 ```
 
-## 制限事項
+## Limitations
 
-- 祝日は 2007 年以降の祝日法に基づく計算です。春分・秋分の日は近似式（1980〜2099 年）で、今後の法改正には追従しません
-- HEIC など、ブラウザが読み込めない形式の画像は開けません
-- Google Fonts を読み込めない環境では、システムのフォントで代替表示されます（「システムのゴシック体 / 明朝体」はオフラインでも使えます）
+- Holidays follow the Japanese holiday law as of 2007 and later. The vernal and autumnal equinox days use an approximation (valid for 1980–2099), and future changes to the law aren't tracked
+- Image formats the browser can't decode, such as HEIC, can't be opened
+- If Google Fonts can't be reached, a system font is used instead ("System sans-serif / serif" work offline)

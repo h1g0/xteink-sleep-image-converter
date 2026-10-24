@@ -73,6 +73,8 @@ export function encodeXth(levels: Uint8Array, width: number, height: number): Ui
 export interface XtchOptions {
   title?: string;
   author?: string;
+  /** メタデータの言語。省略時は "ja" */
+  language?: string;
   /** Unix 時刻 (秒)。省略時は現在時刻 */
   createdAt?: number;
 }
@@ -105,7 +107,7 @@ export function encodeXtch(levels: Uint8Array, width: number, height: number, op
   writeCString(buf, metadataOffset + 0x00, 128, opts.title ?? '');
   writeCString(buf, metadataOffset + 0x80, 64, opts.author ?? '');
   writeCString(buf, metadataOffset + 0xc0, 32, 'xteink-sleep-converter');
-  writeCString(buf, metadataOffset + 0xe0, 16, 'ja');
+  writeCString(buf, metadataOffset + 0xe0, 16, opts.language ?? 'ja');
   view.setUint32(metadataOffset + 0xf0, opts.createdAt ?? Math.floor(Date.now() / 1000), true);
   view.setUint16(metadataOffset + 0xf4, 0, true); // coverPage
   view.setUint16(metadataOffset + 0xf6, 0, true); // chapterCount

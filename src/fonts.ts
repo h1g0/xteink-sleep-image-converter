@@ -1,8 +1,13 @@
+import type { Lang } from './i18n';
+
+/** セレクトボックスのグループ。表示名は i18n の fontGroup.* */
+export type FontGroup = 'gothic' | 'mincho' | 'maru' | 'design' | 'latin' | 'system' | 'custom';
+
 export interface FontPreset {
   id: string;
-  label: string;
-  /** セレクトボックスのグループ名 */
-  group: string;
+  /** 表示名。日本語名がなければ英語名を使う */
+  label: { en: string; ja?: string };
+  group: FontGroup;
   /** Canvas の font に渡す font-family の値 */
   family: string;
   /** Google Fonts の css2 API に渡す family パラメータ */
@@ -13,41 +18,56 @@ export interface FontPreset {
 const JP_SANS_FALLBACK = '"Yu Gothic", YuGothic, "Hiragino Sans", Meiryo, sans-serif';
 const JP_SERIF_FALLBACK = '"Yu Mincho", YuMincho, "Hiragino Mincho ProN", serif';
 
+interface GoogleOptions {
+  ja?: string;
+  /** 省略時はフォント名 */
+  en?: string;
+  /** 代替フォントを明朝体にする */
+  serif?: boolean;
+}
+
 function google(
   id: string,
-  label: string,
-  group: string,
+  group: FontGroup,
   name: string,
   weights: number[],
   spec: string,
-  fallback = JP_SANS_FALLBACK,
+  opts: GoogleOptions = {},
 ): FontPreset {
-  return { id, label, group, family: `"${name}", ${fallback}`, google: spec, weights };
+  const fallback = opts.serif ? JP_SERIF_FALLBACK : JP_SANS_FALLBACK;
+  return {
+    id,
+    label: { en: opts.en ?? name, ja: opts.ja },
+    group,
+    family: `"${name}", ${fallback}`,
+    google: spec,
+    weights,
+  };
 }
 
 export const FONT_PRESETS: FontPreset[] = [
-  google('noto-sans-jp', 'Noto Sans JP', 'ゴシック', 'Noto Sans JP', [100, 300, 400, 500, 700, 900], 'Noto+Sans+JP:wght@100..900'),
-  google('biz-udpgothic', 'BIZ UDPゴシック', 'ゴシック', 'BIZ UDPGothic', [400, 700], 'BIZ+UDPGothic:wght@400;700'),
-  google('zen-kaku-gothic-new', 'Zen角ゴシック New', 'ゴシック', 'Zen Kaku Gothic New', [300, 400, 500, 700, 900], 'Zen+Kaku+Gothic+New:wght@300;400;500;700;900'),
-  google('m-plus-1', 'M PLUS 1', 'ゴシック', 'M PLUS 1', [100, 300, 400, 500, 700, 900], 'M+PLUS+1:wght@100..900'),
-  google('noto-serif-jp', 'Noto Serif JP', '明朝', 'Noto Serif JP', [200, 300, 400, 500, 600, 700, 900], 'Noto+Serif+JP:wght@200..900', JP_SERIF_FALLBACK),
-  google('biz-udpmincho', 'BIZ UDP明朝', '明朝', 'BIZ UDPMincho', [400, 700], 'BIZ+UDPMincho:wght@400;700', JP_SERIF_FALLBACK),
-  google('shippori-mincho', 'しっぽり明朝', '明朝', 'Shippori Mincho', [400, 500, 600, 700, 800], 'Shippori+Mincho:wght@400;500;600;700;800', JP_SERIF_FALLBACK),
-  google('zen-old-mincho', 'Zen オールド明朝', '明朝', 'Zen Old Mincho', [400, 500, 600, 700, 900], 'Zen+Old+Mincho:wght@400;500;600;700;900', JP_SERIF_FALLBACK),
-  google('m-plus-rounded-1c', 'M PLUS Rounded 1c', '丸ゴシック', 'M PLUS Rounded 1c', [100, 300, 400, 500, 700, 800, 900], 'M+PLUS+Rounded+1c:wght@100;300;400;500;700;800;900'),
-  google('zen-maru-gothic', 'Zen丸ゴシック', '丸ゴシック', 'Zen Maru Gothic', [300, 400, 500, 700, 900], 'Zen+Maru+Gothic:wght@300;400;500;700;900'),
-  google('kosugi-maru', '小杉丸ゴシック', '丸ゴシック', 'Kosugi Maru', [400], 'Kosugi+Maru'),
-  google('klee-one', 'クレー (教科書体風)', '手書き・デザイン', 'Klee One', [400, 600], 'Klee+One:wght@400;600'),
-  google('kaisei-decol', '解星デコール', '手書き・デザイン', 'Kaisei Decol', [400, 500, 700], 'Kaisei+Decol:wght@400;500;700', JP_SERIF_FALLBACK),
-  google('yomogi', 'よもぎ (手書き)', '手書き・デザイン', 'Yomogi', [400], 'Yomogi'),
-  google('rocknroll-one', 'ロックンロール One', '手書き・デザイン', 'RocknRoll One', [400], 'RocknRoll+One'),
-  google('dela-gothic-one', 'デラゴシック One (極太)', '手書き・デザイン', 'Dela Gothic One', [400], 'Dela+Gothic+One'),
-  google('dotgothic16', 'ドットゴシック16', '手書き・デザイン', 'DotGothic16', [400], 'DotGothic16'),
-  google('playfair-display', 'Playfair Display', '欧文 (和文は代替)', 'Playfair Display', [400, 500, 600, 700, 800, 900], 'Playfair+Display:wght@400..900', JP_SERIF_FALLBACK),
-  google('oswald', 'Oswald', '欧文 (和文は代替)', 'Oswald', [200, 300, 400, 500, 600, 700], 'Oswald:wght@200..700'),
-  google('bebas-neue', 'Bebas Neue', '欧文 (和文は代替)', 'Bebas Neue', [400], 'Bebas+Neue'),
-  { id: 'system-gothic', label: 'システムのゴシック体', group: 'システム (オフラインでも可)', family: JP_SANS_FALLBACK, weights: [400, 700] },
-  { id: 'system-mincho', label: 'システムの明朝体', group: 'システム (オフラインでも可)', family: JP_SERIF_FALLBACK, weights: [400, 700] },
+  google('noto-sans-jp', 'gothic', 'Noto Sans JP', [100, 300, 400, 500, 700, 900], 'Noto+Sans+JP:wght@100..900'),
+  google('biz-udpgothic', 'gothic', 'BIZ UDPGothic', [400, 700], 'BIZ+UDPGothic:wght@400;700', { ja: 'BIZ UDPゴシック' }),
+  google('zen-kaku-gothic-new', 'gothic', 'Zen Kaku Gothic New', [300, 400, 500, 700, 900], 'Zen+Kaku+Gothic+New:wght@300;400;500;700;900', { ja: 'Zen角ゴシック New' }),
+  google('m-plus-1', 'gothic', 'M PLUS 1', [100, 300, 400, 500, 700, 900], 'M+PLUS+1:wght@100..900'),
+  google('noto-serif-jp', 'mincho', 'Noto Serif JP', [200, 300, 400, 500, 600, 700, 900], 'Noto+Serif+JP:wght@200..900', { serif: true }),
+  google('biz-udpmincho', 'mincho', 'BIZ UDPMincho', [400, 700], 'BIZ+UDPMincho:wght@400;700', { ja: 'BIZ UDP明朝', serif: true }),
+  google('shippori-mincho', 'mincho', 'Shippori Mincho', [400, 500, 600, 700, 800], 'Shippori+Mincho:wght@400;500;600;700;800', { ja: 'しっぽり明朝', serif: true }),
+  google('zen-old-mincho', 'mincho', 'Zen Old Mincho', [400, 500, 600, 700, 900], 'Zen+Old+Mincho:wght@400;500;600;700;900', { ja: 'Zen オールド明朝', serif: true }),
+  google('m-plus-rounded-1c', 'maru', 'M PLUS Rounded 1c', [100, 300, 400, 500, 700, 800, 900], 'M+PLUS+Rounded+1c:wght@100;300;400;500;700;800;900'),
+  google('zen-maru-gothic', 'maru', 'Zen Maru Gothic', [300, 400, 500, 700, 900], 'Zen+Maru+Gothic:wght@300;400;500;700;900', { ja: 'Zen丸ゴシック' }),
+  google('kosugi-maru', 'maru', 'Kosugi Maru', [400], 'Kosugi+Maru', { ja: '小杉丸ゴシック' }),
+  google('klee-one', 'design', 'Klee One', [400, 600], 'Klee+One:wght@400;600', { ja: 'クレー（教科書体風）', en: 'Klee One (textbook style)' }),
+  google('kaisei-decol', 'design', 'Kaisei Decol', [400, 500, 700], 'Kaisei+Decol:wght@400;500;700', { ja: '解星デコール', serif: true }),
+  google('yomogi', 'design', 'Yomogi', [400], 'Yomogi', { ja: 'よもぎ（手書き）', en: 'Yomogi (handwriting)' }),
+  google('rocknroll-one', 'design', 'RocknRoll One', [400], 'RocknRoll+One', { ja: 'ロックンロール One' }),
+  google('dela-gothic-one', 'design', 'Dela Gothic One', [400], 'Dela+Gothic+One', { ja: 'デラゴシック One（極太）', en: 'Dela Gothic One (extra bold)' }),
+  google('dotgothic16', 'design', 'DotGothic16', [400], 'DotGothic16', { ja: 'ドットゴシック16', en: 'DotGothic16 (pixel)' }),
+  google('playfair-display', 'latin', 'Playfair Display', [400, 500, 600, 700, 800, 900], 'Playfair+Display:wght@400..900', { serif: true }),
+  google('oswald', 'latin', 'Oswald', [200, 300, 400, 500, 600, 700], 'Oswald:wght@200..700'),
+  google('bebas-neue', 'latin', 'Bebas Neue', [400], 'Bebas+Neue'),
+  { id: 'system-gothic', label: { en: 'System sans-serif', ja: 'システムのゴシック体' }, group: 'system', family: JP_SANS_FALLBACK, weights: [400, 700] },
+  { id: 'system-mincho', label: { en: 'System serif', ja: 'システムの明朝体' }, group: 'system', family: JP_SERIF_FALLBACK, weights: [400, 700] },
 ];
 
 export const DEFAULT_FONT_ID = 'noto-sans-jp';
@@ -60,6 +80,10 @@ export function allFontPresets(): FontPreset[] {
 
 export function getFontPreset(id: string): FontPreset {
   return allFontPresets().find((p) => p.id === id) ?? FONT_PRESETS[0];
+}
+
+export function fontLabel(preset: FontPreset, lang: Lang): string {
+  return (lang === 'ja' && preset.label.ja) || preset.label.en;
 }
 
 /** 指定した太さに一番近い、そのフォントで使える太さ */
@@ -113,8 +137,8 @@ export async function registerFontFile(file: File): Promise<FontPreset> {
   document.fonts.add(face);
   const preset: FontPreset = {
     id: `custom-${n}`,
-    label: file.name.replace(/\.[^.]+$/, ''),
-    group: '読み込んだフォント',
+    label: { en: file.name.replace(/\.[^.]+$/, '') },
+    group: 'custom',
     family: `"${name}", ${JP_SANS_FALLBACK}`,
     weights: [400, 700],
   };

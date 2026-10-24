@@ -49,7 +49,16 @@ body {
 }
 
 .app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   padding: 20px 24px 8px;
+}
+
+.lang-switch {
+  flex: none;
+  font-size: 12px;
 }
 
 .app-header h1 {

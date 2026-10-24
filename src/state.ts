@@ -2,6 +2,7 @@ import { layoutCalendar, type CalendarSettings } from './calendar/render';
 import { DEVICES, frameSize, type DeviceId, type HoldDirection, type Orientation, type Size } from './devices';
 import type { BmpBitDepth } from './encode/bmp';
 import { DEFAULT_FONT_ID } from './fonts';
+import type { Lang } from './i18n';
 import type { DitherSettings } from './image/dither';
 import type { Level } from './image/levels';
 import type { ToneSettings } from './image/tone';
@@ -23,8 +24,10 @@ export interface AppSettings {
 
 const STORAGE_KEY = 'xteink-sleep-converter:settings:v1';
 
-export function defaultSettings(): AppSettings {
+/** 既定値。カレンダーの見出し・曜日・祝日だけは画面の言語に合わせる */
+export function defaultSettings(lang: Lang): AppSettings {
   const now = new Date();
+  const ja = lang === 'ja';
   const settings: AppSettings = {
     device: 'x3',
     orientation: 'portrait',
@@ -40,16 +43,16 @@ export function defaultSettings(): AppSettings {
       year: now.getFullYear(),
       month: now.getMonth() + 1,
       weekStart: 0,
-      holidays: true,
+      holidays: ja,
       x: 0,
       y: 0,
       width: 0,
       fontId: DEFAULT_FONT_ID,
       fontWeight: 500,
       titleWeight: 700,
-      titleFormat: 'ja-full',
+      titleFormat: ja ? 'ja-full' : 'en-full',
       titleAlign: 'center',
-      weekdayFormat: 'ja',
+      weekdayFormat: ja ? 'ja' : 'en3',
       titleSize: 60,
       weekdaySize: 34,
       daySize: 44,
@@ -82,8 +85,8 @@ export function defaultSettings(): AppSettings {
  * 保存しておいた設定を読み込む。年月は保存せず、いつ開いても今月になる。
  * 項目が増えたときのために、既定値に上書きする形で読み込む。
  */
-export function loadSettings(): AppSettings {
-  const defaults = defaultSettings();
+export function loadSettings(lang: Lang): AppSettings {
+  const defaults = defaultSettings(lang);
   let saved: Partial<AppSettings> | null = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

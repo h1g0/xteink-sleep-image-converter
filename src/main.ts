@@ -8,9 +8,21 @@ import {
   allFontPresets,
   closestWeight,
   ensureFontLoaded,
+  fontLabel,
   getFontPreset,
   registerFontFile,
+  type FontGroup,
 } from './fonts';
+import {
+  detectLang,
+  getLang,
+  isMessageKey,
+  setLang,
+  t,
+  translateDocument,
+  type Lang,
+  type MessageKey,
+} from './i18n';
 import { levelsToImageData, Renderer, toDeviceLevels } from './render/pipeline';
 import {
   containScale,
@@ -35,9 +47,10 @@ import { Binder } from './ui/bind';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const LEVEL_LABELS = ['黒', '濃いグレー', '薄いグレー', '白'];
+setLang(detectLang());
+translateDocument();
 
-const state: AppSettings = loadSettings();
+const state: AppSettings = loadSettings(getLang());
 let frame: Size = frameSize(state.device, state.orientation);
 let placement: Placement = { ...DEFAULT_PLACEMENT };
 let source: SourceImage | null = null;
@@ -54,20 +67,23 @@ const fontSelect = $<HTMLSelectElement>('font-select');
 
 // ---------- 選択肢の生成 ----------
 
-for (const select of document.querySelectorAll<HTMLSelectElement>('select[data-options="levels"]')) {
-  select.replaceChildren(...LEVEL_LABELS.map((label, i) => new Option(label, String(i))));
+function populateLevelSelects(): void {
+  const labels = ([0, 1, 2, 3] as const).map((level) => t(`level.${level}`));
+  for (const select of document.querySelectorAll<HTMLSelectElement>('select[data-options="levels"]')) {
+    select.replaceChildren(...labels.map((label, i) => new Option(label, String(i))));
+  }
 }
 
 function populateFontSelect(): void {
-  const groups = new Map<string, HTMLOptGroupElement>();
+  const groups = new Map<FontGroup, HTMLOptGroupElement>();
   for (const preset of allFontPresets()) {
     let group = groups.get(preset.group);
     if (!group) {
       group = document.createElement('optgroup');
-      group.label = preset.group;
+      group.label = t(`fontGroup.${preset.group}`);
       groups.set(preset.group, group);
     }
-    group.append(new Option(preset.label, preset.id));
+    group.append(new Option(fontLabel(preset, getLang()), preset.id));
   }
   fontSelect.replaceChildren(...groups.values());
 }
@@ -84,10 +100,11 @@ function populateWeightSelects(): void {
 }
 
 function weightLabel(w: number): string {
-  const names: Record<number, string> = { 100: '極細', 200: '細', 300: 'やや細', 400: '標準', 500: '中', 600: 'やや太', 700: '太', 800: '極太', 900: '最太' };
-  return `${w}（${names[w] ?? ''}）`;
+  const key = `weight.${w}`;
+  return isMessageKey(key) ? t('weight.label', { w, name: t(key) }) : String(w);
 }
 
+populateLevelSelects();
 populateFontSelect();
 populateWeightSelects();
 clampCalendar(state.calendar, frame);
@@ -127,7 +144,7 @@ function syncControls(): void {
   const c = state.calendar;
   $<HTMLInputElement>('cal-month').value = `${c.year}-${String(c.month).padStart(2, '0')}`;
   for (const option of document.querySelector<HTMLSelectElement>('[data-bind="calendar.titleFormat"]')!.options) {
-    option.text = formatTitle(option.value as TitleFormat, c.year, c.month) || 'なし';
+    option.text = formatTitle(option.value as TitleFormat, c.year, c.month) || t('cal.titleNone');
   }
   const widthInput = $<HTMLInputElement>('cal-width');
   widthInput.max = String(frame.width);
@@ -137,8 +154,14 @@ function syncControls(): void {
   $('file-ext').textContent = `.${state.format}`;
   const dev = DEVICES[state.device];
   const size = state.format === 'bmp' ? bmpFileSize(dev.width, dev.height, state.bmpDepth) : xtchFileSize(dev.width, dev.height);
-  const formatLabel = state.format === 'bmp' ? `${state.bmpDepth}bit BMP` : 'XTCH (2bit)';
-  $('output-info').textContent = `${dev.label} ${dev.width}×${dev.height}px・${formatLabel}・${formatBytes(size)}`;
+  const format = state.format === 'bmp' ? t('output.formatBmp', { depth: state.bmpDepth }) : t('output.formatXtch');
+  $('output-info').textContent = t('output.info', {
+    device: dev.label,
+    w: dev.width,
+    h: dev.height,
+    format,
+    size: formatBytes(size),
+  });
 }
 
 function formatBytes(n: number): string {
@@ -147,16 +170,21 @@ function formatBytes(n: number): string {
 
 // ---------- フォント ----------
 
+let fontStatus: MessageKey | null = null;
+function showFontStatus(key: MessageKey | null): void {
+  fontStatus = key;
+  $('font-status').textContent = key ? t(key) : '';
+}
+
 let fontToken = 0;
 async function loadCalendarFont(): Promise<void> {
   const c = state.calendar;
   const preset = getFontPreset(c.fontId);
   const token = ++fontToken;
-  const status = $('font-status');
-  status.textContent = preset.google ? '読み込み中…' : '';
+  showFontStatus(preset.google ? 'font.loading' : null);
   const ok = await ensureFontLoaded(preset, [c.fontWeight, c.titleWeight], calendarText(c));
   if (token !== fontToken) return;
-  status.textContent = ok ? '' : 'フォントを読み込めませんでした（代替フォントで表示中）';
+  showFontStatus(ok ? null : 'font.failed');
   requestRender();
 }
 
@@ -173,7 +201,7 @@ $<HTMLInputElement>('font-file').addEventListener('change', async (e) => {
     state.calendar.fontId = preset.id;
     onSettingChange('calendar.fontId');
   } catch {
-    $('font-status').textContent = 'このファイルはフォントとして読み込めませんでした';
+    showFontStatus('font.fileError');
   }
 });
 
@@ -222,18 +250,37 @@ function render(): void {
 
 // ---------- 画像の読み込み ----------
 
-async function loadImage(blob: Blob, name: string): Promise<void> {
+/** 画像の読み込み状況。言語を切り替えたときに表示し直せるよう、文言ではなく状態を持つ */
+type SourceStatus = { kind: 'none' } | { kind: 'loaded' | 'error'; name: string | null };
+let sourceStatus: SourceStatus = { kind: 'none' };
+
+function showSourceStatus(status: SourceStatus): void {
+  sourceStatus = status;
+  const info = $('source-info');
+  if (status.kind === 'none') {
+    info.textContent = t('preview.noImage');
+    return;
+  }
+  const name = status.name ?? t('preview.pasted');
+  info.textContent =
+    status.kind === 'loaded' && source
+      ? t('preview.loaded', { name, w: source.width, h: source.height })
+      : t('preview.loadError', { name });
+}
+
+/** name が null のときは貼り付けた画像として表示する */
+async function loadImage(blob: Blob, name: string | null): Promise<void> {
   try {
     const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
     source?.close();
-    source = new SourceImage(bitmap, name);
+    source = new SourceImage(bitmap, name ?? '');
     placement = { ...DEFAULT_PLACEMENT };
-    $('source-info').textContent = `${name}（${bitmap.width}×${bitmap.height}）`;
+    showSourceStatus({ kind: 'loaded', name });
     $('drop-hint').hidden = true;
     syncControls();
     requestRender();
   } catch {
-    $('source-info').textContent = `${name} は画像として読み込めませんでした`;
+    showSourceStatus({ kind: 'error', name });
   }
 }
 
@@ -263,7 +310,7 @@ document.addEventListener('paste', (e) => {
   const file = item?.getAsFile();
   if (file) {
     e.preventDefault();
-    void loadImage(file, file.name || '貼り付けた画像');
+    void loadImage(file, file.name || null);
   }
 });
 
@@ -436,7 +483,7 @@ $('download').addEventListener('click', () => {
   const bytes =
     state.format === 'bmp'
       ? encodeBmp(levels, dev.width, dev.height, state.bmpDepth)
-      : encodeXtch(levels, dev.width, dev.height, { title: name });
+      : encodeXtch(levels, dev.width, dev.height, { title: name, language: getLang() });
   const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], {
     type: state.format === 'bmp' ? 'image/bmp' : 'application/octet-stream',
   });
@@ -450,13 +497,36 @@ $('download').addEventListener('click', () => {
 
 $('reset-settings').addEventListener('click', () => {
   clearSettings();
-  Object.assign(state, defaultSettings());
+  Object.assign(state, defaultSettings(getLang()));
   frame = frameSize(state.device, state.orientation);
   placement = { ...DEFAULT_PLACEMENT };
   populateWeightSelects();
   onSettingChange('calendar.fontId');
 });
 
+// ---------- 表示言語 ----------
+
+/** 画面の文言だけを切り替える。カレンダーの見出しや曜日の書式は設定のまま変えない */
+function applyLanguage(lang: Lang): void {
+  setLang(lang);
+  translateDocument();
+  populateLevelSelects();
+  populateFontSelect();
+  populateWeightSelects();
+  binder.refresh();
+  syncControls();
+  showSourceStatus(sourceStatus);
+  showFontStatus(fontStatus);
+}
+
+for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="lang"]')) {
+  radio.checked = radio.value === getLang();
+  radio.addEventListener('change', () => {
+    if (radio.checked) applyLanguage(radio.value as Lang);
+  });
+}
+
+showSourceStatus(sourceStatus);
 syncControls();
 void loadCalendarFont();
 requestRender();
