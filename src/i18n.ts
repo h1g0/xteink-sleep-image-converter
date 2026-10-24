@@ -315,7 +315,19 @@ export function getLang(): Lang {
   return current;
 }
 
-/** 保存しておいた言語、なければブラウザの言語設定から決める */
+/**
+ * ブラウザの言語設定を優先度の高い順に見て、最初に見つかった対応言語を返す。
+ * 日本語が英語より上にある場合だけ日本語になり、どちらもなければ英語にする。
+ */
+export function preferredLang(languages: readonly string[]): Lang {
+  for (const tag of languages) {
+    const base = tag.toLowerCase().split('-')[0];
+    if (base === 'ja' || base === 'en') return base;
+  }
+  return 'en';
+}
+
+/** 画面で選んで保存しておいた言語、なければブラウザの言語設定から決める */
 export function detectLang(): Lang {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -323,7 +335,7 @@ export function detectLang(): Lang {
   } catch {
     // 保存できない環境ではブラウザの設定に従う
   }
-  return navigator.languages.some((l) => l.toLowerCase().startsWith('ja')) ? 'ja' : 'en';
+  return preferredLang(navigator.languages?.length ? navigator.languages : [navigator.language]);
 }
 
 export function setLang(lang: Lang): void {
