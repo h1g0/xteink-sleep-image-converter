@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { holidayKey, japaneseHolidays } from '../src/calendar/holidays';
-import { buildMonthGrid, formatTitle, weekdayHeaders } from '../src/calendar/model';
+import { buildMonthGrid, consecutiveMonths, formatTitle, weekdayHeaders } from '../src/calendar/model';
+import { calendarText, layoutCalendar, type CalendarSettings } from '../src/calendar/render';
+import { defaultSettings } from '../src/state';
 
 describe('japaneseHolidays', () => {
   it('2026 年 (内閣府の公表と一致)', () => {
@@ -94,5 +96,82 @@ describe('labels', () => {
     expect(formatTitle('wareki', 2019, 4)).toBe('平成31年4月');
     expect(formatTitle('en-upper', 2026, 11)).toBe('NOVEMBER 2026');
     expect(formatTitle('numeric', 2026, 3)).toBe('2026.03');
+  });
+});
+
+describe('consecutiveMonths', () => {
+  it('年をまたぐと翌年の 1 月になる', () => {
+    expect(consecutiveMonths(2026, 11, 2)).toEqual([
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ]);
+    expect(consecutiveMonths(2026, 12, 2)).toEqual([
+      { year: 2026, month: 12 },
+      { year: 2027, month: 1 },
+    ]);
+  });
+});
+
+describe('layoutCalendar', () => {
+  /** 2026 年 11 月 (日曜始まりで 5 行) と 12 月 (5 行) */
+  function settings(overrides: Partial<CalendarSettings> = {}): CalendarSettings {
+    return {
+      ...defaultSettings('ja').calendar,
+      year: 2026,
+      month: 11,
+      weekStart: 0,
+      x: 10,
+      y: 20,
+      width: 400,
+      padding: 16,
+      monthGap: 50,
+      ...overrides,
+    };
+  }
+
+  it('1 か月なら月は 1 つだけで、内側の左上に置く', () => {
+    const L = layoutCalendar(settings({ months: 1 }));
+    expect(L.months).toHaveLength(1);
+    expect(L.months[0]).toMatchObject({ dx: 0, dy: 0, year: 2026, month: 11, title: '2026年11月' });
+    expect(L.cellW).toBeCloseTo((400 - 32) / 7);
+    expect(L.height).toBe(Math.ceil(32 + L.titleH + L.weekdayH + L.rowH * 5));
+  });
+
+  it('縦に並べると 1 マスの幅は 1 か月と同じで、間隔をあけて下に積む', () => {
+    const one = layoutCalendar(settings({ months: 1 }));
+    const L = layoutCalendar(settings({ months: 2, monthArrange: 'vertical' }));
+    expect(L.cellW).toBeCloseTo(one.cellW);
+    expect(L.months.map((m) => [m.year, m.month, m.title])).toEqual([
+      [2026, 11, '2026年11月'],
+      [2026, 12, '2026年12月'],
+    ]);
+    const blockH = L.titleH + L.weekdayH + L.rowH * 5;
+    const gap = L.cellW * 0.5;
+    expect(L.months[1].dx).toBe(0);
+    expect(L.months[1].dy).toBeCloseTo(blockH + gap);
+    expect(L.height).toBe(Math.ceil(32 + blockH * 2 + gap));
+  });
+
+  it('横に並べると幅を 2 か月と間隔で分け合い、高さは行の多い方に合わせる', () => {
+    // 2027 年 1 月は日曜始まりで 6 行、2 月は 5 行
+    const L = layoutCalendar(settings({ year: 2027, month: 1, months: 2, monthArrange: 'horizontal' }));
+    expect(L.months[0].grid).toHaveLength(6);
+    expect(L.months[1].grid).toHaveLength(5);
+    expect(L.cellW).toBeCloseTo((400 - 32) / 14.5);
+    expect(L.months[1].dx).toBeCloseTo(L.cellW * 7.5);
+    expect(L.months[1].dy).toBe(0);
+    expect(L.height).toBe(Math.ceil(32 + L.titleH + L.weekdayH + L.rowH * 6));
+  });
+
+  it('間隔 0 なら月どうしがすき間なく並ぶ', () => {
+    const L = layoutCalendar(settings({ months: 2, monthArrange: 'horizontal', monthGap: 0 }));
+    expect(L.cellW).toBeCloseTo((400 - 32) / 14);
+    expect(L.months[1].dx).toBeCloseTo(L.cellW * 7);
+  });
+
+  it('フォントの読み込み用の文字に 2 か月分の見出しを含める', () => {
+    const text = calendarText(settings({ month: 12, months: 2, titleFormat: 'en-full' }));
+    expect(text).toContain('December 2026');
+    expect(text).toContain('January 2027');
   });
 });

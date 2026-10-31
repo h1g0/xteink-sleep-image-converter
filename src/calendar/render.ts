@@ -1,6 +1,7 @@
 import { levelCss, type Level } from '../image/levels';
 import {
   buildMonthGrid,
+  consecutiveMonths,
   formatTitle,
   weekdayHeaders,
   type DayCell,
@@ -11,12 +12,21 @@ import {
 
 export type GridStyle = 'none' | 'header' | 'all';
 export type TitleAlign = 'left' | 'center' | 'right';
+/** 並べる月の数 */
+export type MonthCount = 1 | 2;
+/** 2 か月以上を並べるときの向き。vertical = 縦に積む, horizontal = 横に並べる */
+export type MonthArrange = 'vertical' | 'horizontal';
 
 export interface CalendarSettings {
   enabled: boolean;
   year: number;
-  /** 1〜12 */
+  /** 1〜12。2 か月以上を並べるときは最初の月 */
   month: number;
+  /** year 年 month 月から何か月分を並べるか */
+  months: MonthCount;
+  monthArrange: MonthArrange;
+  /** 月と月の間隔。1 マスの幅に対する % */
+  monthGap: number;
   weekStart: WeekStart;
   holidays: boolean;
   /** フレーム内での左上の位置と幅 (px) */
@@ -54,6 +64,17 @@ export interface CalendarSettings {
   crisp: boolean;
 }
 
+/** 1 か月分の表の位置と中身 */
+export interface MonthLayout {
+  /** パディングの内側の左上からの位置 (px) */
+  dx: number;
+  dy: number;
+  year: number;
+  month: number;
+  title: string;
+  grid: DayCell[][];
+}
+
 export interface CalendarLayout {
   x: number;
   y: number;
@@ -67,22 +88,45 @@ export interface CalendarLayout {
   titleFont: number;
   weekdayFont: number;
   dayFont: number;
-  title: string;
-  grid: DayCell[][];
+  /** 並べる順 (縦なら上から、横なら左から) */
+  months: MonthLayout[];
+}
+
+/** 年月で選んだ月から、並べる月の数だけ年月を返す */
+function calendarMonths(s: CalendarSettings): { year: number; month: number }[] {
+  return consecutiveMonths(s.year, s.month, s.months === 2 ? 2 : 1);
 }
 
 export function layoutCalendar(s: CalendarSettings): CalendarLayout {
-  const grid = buildMonthGrid(s.year, s.month, s.weekStart);
-  const title = formatTitle(s.titleFormat, s.year, s.month);
+  const blocks = calendarMonths(s).map(({ year, month }) => ({
+    year,
+    month,
+    title: formatTitle(s.titleFormat, year, month),
+    grid: buildMonthGrid(year, month, s.weekStart),
+  }));
+  const horizontal = blocks.length > 1 && s.monthArrange === 'horizontal';
   const pad = s.padding;
-  const cellW = Math.max(1, s.width - pad * 2) / 7;
+  // 横に並べるときは 7 マス × 月数と月の間隔で内側の幅を分け合う。間隔もマスの幅に比例させる
+  const gapRatio = Math.max(0, s.monthGap) / 100;
+  const columns = horizontal ? 7 * blocks.length + gapRatio * (blocks.length - 1) : 7;
+  const cellW = Math.max(1, s.width - pad * 2) / columns;
+  const gap = blocks.length > 1 ? cellW * gapRatio : 0;
   const titleFont = (cellW * s.titleSize) / 100;
   const weekdayFont = (cellW * s.weekdaySize) / 100;
   const dayFont = (cellW * s.daySize) / 100;
-  const titleH = title ? titleFont * 1.6 : 0;
+  const titleH = blocks.some((b) => b.title) ? titleFont * 1.6 : 0;
   const weekdayH = s.weekdayFormat === 'none' ? 0 : weekdayFont * 1.9;
   const rowH = (cellW * s.rowHeight) / 100;
-  const height = Math.ceil(pad * 2 + titleH + weekdayH + rowH * grid.length);
+  const blockH = (b: { grid: DayCell[][] }) => titleH + weekdayH + rowH * b.grid.length;
+
+  const months: MonthLayout[] = [];
+  let offset = 0;
+  for (const b of blocks) {
+    months.push(horizontal ? { ...b, dx: offset, dy: 0 } : { ...b, dx: 0, dy: offset });
+    offset += (horizontal ? cellW * 7 : blockH(b)) + gap;
+  }
+  const contentH = horizontal ? Math.max(...blocks.map(blockH)) : offset - gap;
+  const height = Math.ceil(pad * 2 + contentH);
   return {
     x: s.x,
     y: s.y,
@@ -96,15 +140,15 @@ export function layoutCalendar(s: CalendarSettings): CalendarLayout {
     titleFont,
     weekdayFont,
     dayFont,
-    title,
-    grid,
+    months,
   };
 }
 
 /** フォントの読み込みに使う、カレンダーに描く文字の一覧 */
 export function calendarText(s: CalendarSettings): string {
+  const titles = calendarMonths(s).map(({ year, month }) => formatTitle(s.titleFormat, year, month));
   const labels = weekdayHeaders(s.weekdayFormat, 0).map((h) => h.label);
-  return formatTitle(s.titleFormat, s.year, s.month) + labels.join('') + '0123456789';
+  return titles.join('') + labels.join('') + '0123456789';
 }
 
 /**
@@ -129,9 +173,24 @@ export function drawCalendar(
   }
   if (part === 'panel') return;
 
-  const left = L.x + L.pad;
+  // 横に並べた見出しのベースラインが揃うよう、すべての月の見出しをまとめて測る
+  ctx.font = cssFont(s.titleWeight, L.titleFont, family);
+  const titleShift = baselineShift(ctx, L.months.map((m) => m.title).join(''));
+  for (const m of L.months) drawMonth(ctx, s, L, m, family, titleShift);
+}
+
+/** 1 か月分の見出し・曜日・罫線・日付を描く */
+function drawMonth(
+  ctx: CanvasRenderingContext2D,
+  s: CalendarSettings,
+  L: CalendarLayout,
+  m: MonthLayout,
+  family: string,
+  titleShift: number,
+): void {
+  const left = L.x + L.pad + m.dx;
   const innerW = L.cellW * 7;
-  let top = L.y + L.pad;
+  let top = L.y + L.pad + m.dy;
   const colX = (c: number) => left + L.cellW * (c + 0.5);
 
   if (L.titleH > 0) {
@@ -143,7 +202,7 @@ export function drawCalendar(
         : s.titleAlign === 'right'
           ? [left + innerW - inset, 'right']
           : [left + innerW / 2, 'center'];
-    drawText(ctx, s, L.title, x, top + L.titleH / 2, baselineShift(ctx, L.title), align, s.textColor);
+    drawText(ctx, s, m.title, x, top + L.titleH / 2, titleShift, align, s.textColor);
     top += L.titleH;
   }
 
@@ -164,15 +223,15 @@ export function drawCalendar(
     ctx.fillStyle = levelCss(s.gridColor);
     line(left, top - lw / 2, Math.round(innerW), lw);
     if (s.grid === 'all') {
-      const bodyH = Math.round(L.rowH * L.grid.length);
-      for (let r = 1; r < L.grid.length; r++) line(left, top + r * L.rowH - lw / 2, Math.round(innerW), lw);
+      const bodyH = Math.round(L.rowH * m.grid.length);
+      for (let r = 1; r < m.grid.length; r++) line(left, top + r * L.rowH - lw / 2, Math.round(innerW), lw);
       for (let c = 1; c < 7; c++) line(left + c * L.cellW - lw / 2, top, lw, bodyH);
     }
   }
 
   ctx.font = cssFont(s.fontWeight, L.dayFont, family);
   const shift = baselineShift(ctx, '0123456789');
-  L.grid.forEach((week, r) => {
+  m.grid.forEach((week, r) => {
     const cy = top + L.rowH * (r + 0.5);
     week.forEach((cell, c) => {
       if (!cell.inMonth && !s.showOtherMonths) return;

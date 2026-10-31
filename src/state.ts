@@ -42,6 +42,9 @@ export function defaultSettings(lang: Lang): AppSettings {
       enabled: true,
       year: now.getFullYear(),
       month: now.getMonth() + 1,
+      months: 1,
+      monthArrange: 'vertical',
+      monthGap: 50,
       weekStart: 0,
       holidays: ja,
       x: 0,
@@ -126,9 +129,14 @@ export function clearSettings(): void {
 
 export type VerticalAnchor = 'top' | 'middle' | 'bottom';
 
+/** カレンダーを上下の端に寄せて置くときの、フレームの端からの余白 */
+function frameMargin(frame: Size): number {
+  return Math.round(Math.min(frame.width, frame.height) * 0.04);
+}
+
 /** カレンダーを左右中央・指定した高さに置く */
 export function placeCalendar(c: CalendarSettings, frame: Size, anchor: VerticalAnchor): void {
-  const margin = Math.round(Math.min(frame.width, frame.height) * 0.04);
+  const margin = frameMargin(frame);
   const { height } = layoutCalendar(c);
   c.x = Math.round((frame.width - c.width) / 2);
   c.y = anchor === 'top' ? margin : anchor === 'middle' ? Math.round((frame.height - height) / 2) : frame.height - height - margin;
@@ -157,4 +165,54 @@ export function moveCalendarToFrame(c: CalendarSettings, from: Size, to: Size): 
   c.x = cx * to.width - next.width / 2;
   c.y = cy * to.height - next.height / 2;
   clampCalendar(c, to);
+}
+
+/**
+ * カレンダーを上・中央・下のどこに寄せて置いているかを、上下の余白から判断する。
+ * 余白の差が丸めの誤差程度なら中央とみなす。
+ */
+export function inferCalendarAnchor(c: CalendarSettings, frame: Size): VerticalAnchor {
+  const { height } = layoutCalendar(c);
+  const top = c.y;
+  const bottom = frame.height - c.y - height;
+  if (Math.abs(top - bottom) <= 2) return 'middle';
+  return top < bottom ? 'top' : 'bottom';
+}
+
+/**
+ * 並べる月の数や並べ方を変えたとき、文字の大きさ (1 マスの幅) が変わらないように幅を決め直す。
+ * フレームに余白を残して収まらなければ縮める。before は変える前の設定。
+ *
+ * 位置は anchor が top なら上端、bottom なら下端、middle なら上下の中心を保つ。左右は中心を保つ。
+ */
+export function rearrangeCalendar(
+  c: CalendarSettings,
+  before: CalendarSettings,
+  frame: Size,
+  anchor: VerticalAnchor,
+): void {
+  const margin = frameMargin(frame);
+  const prev = layoutCalendar(before);
+  const pad2 = c.padding * 2;
+  const inner = Math.max(1, c.width - pad2);
+  // 内側の幅は 1 マスの幅に比例するので、比で求める。もともと大きくしてあった分は狭めない
+  const maxWidth = Math.max(before.width, frame.width - margin * 2);
+  c.width = Math.round(Math.min(pad2 + (inner * prev.cellW) / layoutCalendar(c).cellW, maxWidth));
+
+  // 高さもパディングを除けば幅に比例するので、収まらなければ同じ比で縮める
+  const maxHeight = Math.max(prev.height, frame.height - margin * 2);
+  const { height } = layoutCalendar(c);
+  if (height > maxHeight && height > pad2) {
+    c.width = Math.floor(pad2 + (Math.max(1, c.width - pad2) * (maxHeight - pad2)) / (height - pad2));
+  }
+
+  const next = layoutCalendar(c);
+  c.x = before.x + (before.width - c.width) / 2;
+  c.y =
+    anchor === 'top'
+      ? before.y
+      : anchor === 'bottom'
+        ? before.y + prev.height - next.height
+        : before.y + (prev.height - next.height) / 2;
+  clampCalendar(c, frame);
 }

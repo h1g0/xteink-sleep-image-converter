@@ -26,6 +26,14 @@ export interface DayCell {
   holiday?: string;
 }
 
+/** year 年 month 月から始まる count か月分の年月。年をまたぐ場合は翌年に繰り上げる */
+export function consecutiveMonths(year: number, month: number, count: number): { year: number; month: number }[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(year, month - 1 + i, 1);
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  });
+}
+
 /** 月のカレンダーを週ごとの行に分けて返す。行数は 4〜6 */
 export function buildMonthGrid(year: number, month: number, weekStart: WeekStart): DayCell[][] {
   const first = new Date(year, month - 1, 1);

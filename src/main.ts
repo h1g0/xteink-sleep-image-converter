@@ -36,9 +36,11 @@ import {
   clampCalendar,
   clearSettings,
   defaultSettings,
+  inferCalendarAnchor,
   loadSettings,
   moveCalendarToFrame,
   placeCalendar,
+  rearrangeCalendar,
   saveSettings,
   type AppSettings,
   type VerticalAnchor,
@@ -113,6 +115,19 @@ const binder = new Binder(document, state, onSettingChange);
 
 // ---------- 設定の変更 ----------
 
+/** 並べる月の数と並べ方の直前の値。変えたときに文字の大きさと位置を保つのに使う */
+function monthArrangement(): Pick<AppSettings['calendar'], 'months' | 'monthArrange'> {
+  const { months, monthArrange } = state.calendar;
+  return { months, monthArrange };
+}
+let lastArrangement = monthArrangement();
+
+/**
+ * カレンダーを上・中央・下のどこに寄せて置いたか。月の数や並べ方を変えたときに保つ。
+ * カレンダーがフレームいっぱいになると位置からは判断できないので、置いたときの値を覚えておく。
+ */
+let calendarAnchor: VerticalAnchor = inferCalendarAnchor(state.calendar, frame);
+
 let saveTimer = 0;
 function scheduleSave(): void {
   clearTimeout(saveTimer);
@@ -128,10 +143,15 @@ function onSettingChange(path: string): void {
     placement.offsetY = 0;
   }
   if (path === 'calendar.fontId') populateWeightSelects();
+  if (path === 'calendar.months' || path === 'calendar.monthArrange') {
+    rearrangeCalendar(state.calendar, { ...state.calendar, ...lastArrangement }, frame, calendarAnchor);
+  }
+  lastArrangement = monthArrangement();
   if (path.startsWith('calendar.')) {
     clampCalendar(state.calendar, frame);
-    if (/^calendar\.(fontId|fontWeight|titleWeight|titleFormat|weekdayFormat)$/.test(path)) void loadCalendarFont();
+    if (/^calendar\.(fontId|fontWeight|titleWeight|titleFormat|weekdayFormat|months)$/.test(path)) void loadCalendarFont();
   }
+  if (path === 'calendar.x' || path === 'calendar.y') calendarAnchor = inferCalendarAnchor(state.calendar, frame);
   if (path === 'fileName') state.fileName = state.fileName.replace(/[\\/:*?"<>|]/g, '_');
   binder.refresh();
   syncControls();
@@ -425,7 +445,13 @@ preview.addEventListener('pointermove', (e) => {
 });
 
 function endDrag(): void {
-  if (drag?.kind === 'calendar') scheduleSave();
+  if (drag?.kind === 'calendar') {
+    // 動かさずに離しただけなら、置いた場所の扱いは変えない
+    if (state.calendar.x !== drag.origX || state.calendar.y !== drag.origY) {
+      calendarAnchor = inferCalendarAnchor(state.calendar, frame);
+    }
+    scheduleSave();
+  }
   drag = null;
   preview.classList.remove('dragging');
 }
@@ -468,8 +494,10 @@ $('this-month').addEventListener('click', () => {
 
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-anchor]')) {
   button.addEventListener('click', () => {
-    placeCalendar(state.calendar, frame, button.dataset.anchor as VerticalAnchor);
+    const next = button.dataset.anchor as VerticalAnchor;
+    placeCalendar(state.calendar, frame, next);
     onSettingChange('calendar.y');
+    calendarAnchor = next;
   });
 }
 
@@ -502,6 +530,7 @@ $('reset-settings').addEventListener('click', () => {
   placement = { ...DEFAULT_PLACEMENT };
   populateWeightSelects();
   onSettingChange('calendar.fontId');
+  calendarAnchor = inferCalendarAnchor(state.calendar, frame);
 });
 
 // ---------- 表示言語 ----------
