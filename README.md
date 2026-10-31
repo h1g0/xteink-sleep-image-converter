@@ -18,6 +18,7 @@ Everything runs in the browser and your images are never uploaded. The only netw
   - XTCH: an XTC container holding a single page (a 2-bit XTH page)
 - **Calendar**
   - Week starting on Sunday or Monday, any month, and Japanese public holidays (including substitute and "sandwiched" holidays)
+  - One month, or two consecutive months stacked or side by side (with adjustable spacing). Switching keeps the text size and whether the calendar sits at the top, middle or bottom
   - Fonts: 20 Google Fonts across gothic (sans-serif), mincho (serif), rounded, handwriting/display and Latin styles, system fonts, or your own font file (.ttf / .otf / .woff / .woff2)
   - Heading format (2026年11月, 令和8年11月, NOVEMBER 2026, and more), weekday labels, text sizes, row height
   - Colors for text, Sundays and holidays, Saturdays, adjacent months and grid lines (chosen from the 4 gray levels)

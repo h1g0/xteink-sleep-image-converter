@@ -204,13 +204,51 @@
 
           <div class="group" data-show-if="calendar.enabled">
             <div class="field">
-              <span class="label" data-i18n="cal.month">Month</span>
+              <span class="label">
+                <span data-i18n="cal.month" data-show-if="calendar.months!=2">Month</span>
+                <span data-i18n="cal.firstMonth" data-show-if="calendar.months=2">First month</span>
+              </span>
               <div class="month-picker">
                 <button type="button" class="button icon" id="prev-month" data-i18n-title="cal.prev" title="Previous month">◀</button>
                 <input type="month" id="cal-month" required />
                 <button type="button" class="button icon" id="next-month" data-i18n-title="cal.next" title="Next month">▶</button>
                 <button type="button" class="button" id="this-month" data-i18n="cal.thisMonth">This month</button>
               </div>
+            </div>
+            <div class="field">
+              <span class="label" data-i18n="cal.months">Months shown</span>
+              <div class="segmented">
+                <label>
+                  <input type="radio" name="months" value="1" data-bind="calendar.months" data-type="number" />
+                  <span data-i18n="cal.months1">1 month</span>
+                </label>
+                <label>
+                  <input type="radio" name="months" value="2" data-bind="calendar.months" data-type="number" />
+                  <span data-i18n="cal.months2">2 months</span>
+                </label>
+              </div>
+            </div>
+            <div class="group indent" data-show-if="calendar.months=2">
+              <div class="field">
+                <span class="label" data-i18n="cal.arrange">Arrangement</span>
+                <div class="segmented">
+                  <label>
+                    <input type="radio" name="monthArrange" value="vertical" data-bind="calendar.monthArrange" />
+                    <span data-i18n="cal.arrangeVertical">Stacked</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="monthArrange" value="horizontal" data-bind="calendar.monthArrange" />
+                    <span data-i18n="cal.arrangeHorizontal">Side by side</span>
+                  </label>
+                </div>
+              </div>
+              <label class="field">
+                <span class="label">
+                  <span data-i18n="cal.monthGap">Space between months</span>
+                  <output data-out="calendar.monthGap" data-unit="%"></output>
+                </span>
+                <input type="range" min="0" max="200" step="1" data-bind="calendar.monthGap" />
+              </label>
             </div>
             <div class="field">
               <span class="label" data-i18n="cal.weekStart">Week starts on</span>
