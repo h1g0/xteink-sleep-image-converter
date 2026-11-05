@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { holidayKey, japaneseHolidays } from '../src/calendar/holidays';
 import { buildMonthGrid, consecutiveMonths, formatTitle, weekdayHeaders } from '../src/calendar/model';
-import { calendarText, layoutCalendar, type CalendarSettings } from '../src/calendar/render';
+import {
+  calendarBounds,
+  calendarText,
+  drawCalendar,
+  layoutCalendar,
+  type CalendarSettings,
+} from '../src/calendar/render';
 import { defaultSettings } from '../src/state';
 
 describe('japaneseHolidays', () => {
@@ -173,5 +179,68 @@ describe('layoutCalendar', () => {
     const text = calendarText(settings({ month: 12, months: 2, titleFormat: 'en-full' }));
     expect(text).toContain('December 2026');
     expect(text).toContain('January 2027');
+  });
+});
+
+describe('drawCalendar の向き', () => {
+  /** translate と rotate だけを追い、背景パネルの四隅がフレームのどこに描かれるかを記録する */
+  function panelCorners(s: CalendarSettings): { first: [number, number]; corners: [number, number][] } {
+    let m = [1, 0, 0, 1, 0, 0]; // a b c d e f
+    const apply = (x: number, y: number): [number, number] => [
+      Math.round(m[0] * x + m[2] * y + m[4]),
+      Math.round(m[1] * x + m[3] * y + m[5]),
+    ];
+    let rect: [number, number, number, number] = [0, 0, 0, 0];
+    const result = { first: [0, 0] as [number, number], corners: [] as [number, number][] };
+    const ctx = {
+      save() {},
+      restore() {},
+      translate(x: number, y: number) {
+        m = [m[0], m[1], m[2], m[3], m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+      },
+      rotate(t: number) {
+        const cos = Math.cos(t);
+        const sin = Math.sin(t);
+        m = [m[0] * cos + m[2] * sin, m[1] * cos + m[3] * sin, m[2] * cos - m[0] * sin, m[3] * cos - m[1] * sin, m[4], m[5]];
+      },
+      beginPath() {},
+      roundRect(x: number, y: number, w: number, h: number) {
+        rect = [x, y, w, h];
+      },
+      fill() {
+        const [x, y, w, h] = rect;
+        result.first = apply(x, y);
+        result.corners = [apply(x, y), apply(x + w, y), apply(x, y + h), apply(x + w, y + h)];
+      },
+    } as unknown as CanvasRenderingContext2D;
+    drawCalendar(ctx, s, layoutCalendar(s), 'sans-serif', 'panel');
+    return result;
+  }
+
+  const base: CalendarSettings = { ...defaultSettings('ja').calendar, year: 2026, month: 11, x: 30, y: 40, width: 300 };
+
+  it('回してもフレーム上の範囲にぴったり描き、カレンダーの左上は回した向きの角に来る', () => {
+    const L = layoutCalendar(base);
+    // 回したカレンダーの左上 (見出しの始まり) が来るフレーム上の角
+    const expected: Record<number, [number, number]> = {
+      0: [30, 40],
+      1: [30 + L.height, 40],
+      2: [30 + L.width, 40 + L.height],
+      3: [30, 40 + L.width],
+    };
+    for (const rotation of [0, 1, 2, 3] as const) {
+      const s = { ...base, rotation };
+      const b = calendarBounds(layoutCalendar(s));
+      const { first, corners } = panelCorners(s);
+      expect(first).toEqual(expected[rotation]);
+      const xs = corners.map(([x]) => x);
+      const ys = corners.map(([, y]) => y);
+      expect([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]).toEqual([
+        b.x,
+        b.y,
+        b.x + b.width,
+        b.y + b.height,
+      ]);
+    }
   });
 });

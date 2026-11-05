@@ -1,6 +1,6 @@
 import './style.css';
 import { formatTitle, type TitleFormat } from './calendar/model';
-import { calendarText, layoutCalendar } from './calendar/render';
+import { calendarBounds, calendarText, layoutCalendar } from './calendar/render';
 import { DEVICES, frameSize, type Size } from './devices';
 import { bmpFileSize, encodeBmp } from './encode/bmp';
 import { encodeXtch, xtchFileSize } from './encode/xtch';
@@ -33,6 +33,7 @@ import {
   type QuarterTurn,
 } from './render/source';
 import {
+  calendarView,
   clampCalendar,
   clearSettings,
   defaultSettings,
@@ -115,15 +116,15 @@ const binder = new Binder(document, state, onSettingChange);
 
 // ---------- 設定の変更 ----------
 
-/** 並べる月の数と並べ方の直前の値。変えたときに文字の大きさと位置を保つのに使う */
-function monthArrangement(): Pick<AppSettings['calendar'], 'months' | 'monthArrange'> {
-  const { months, monthArrange } = state.calendar;
-  return { months, monthArrange };
+/** 並べる月の数・並べ方・向きの直前の値。変えたときに文字の大きさと位置を保つのに使う */
+function monthArrangement(): Pick<AppSettings['calendar'], 'months' | 'monthArrange' | 'rotation'> {
+  const { months, monthArrange, rotation } = state.calendar;
+  return { months, monthArrange, rotation };
 }
 let lastArrangement = monthArrangement();
 
 /**
- * カレンダーを上・中央・下のどこに寄せて置いたか。月の数や並べ方を変えたときに保つ。
+ * カレンダーを (読む向きで) 上・中央・下のどこに寄せて置いたか。月の数や並べ方、向きを変えたときに保つ。
  * カレンダーがフレームいっぱいになると位置からは判断できないので、置いたときの値を覚えておく。
  */
 let calendarAnchor: VerticalAnchor = inferCalendarAnchor(state.calendar, frame);
@@ -143,7 +144,7 @@ function onSettingChange(path: string): void {
     placement.offsetY = 0;
   }
   if (path === 'calendar.fontId') populateWeightSelects();
-  if (path === 'calendar.months' || path === 'calendar.monthArrange') {
+  if (path === 'calendar.months' || path === 'calendar.monthArrange' || path === 'calendar.rotation') {
     rearrangeCalendar(state.calendar, { ...state.calendar, ...lastArrangement }, frame, calendarAnchor);
   }
   lastArrangement = monthArrangement();
@@ -167,7 +168,7 @@ function syncControls(): void {
     option.text = formatTitle(option.value as TitleFormat, c.year, c.month) || t('cal.titleNone');
   }
   const widthInput = $<HTMLInputElement>('cal-width');
-  widthInput.max = String(frame.width);
+  widthInput.max = String(calendarView(frame, c.rotation).width);
   widthInput.value = String(c.width);
   zoomInput.value = String(Math.round(placement.zoom * 100));
   $<HTMLOutputElement>('zoom-out').textContent = `${Math.round(placement.zoom * 100)}%`;
@@ -406,8 +407,8 @@ function toFrame(e: { clientX: number; clientY: number }): { x: number; y: numbe
 function hitCalendar(p: { x: number; y: number }): boolean {
   const c = state.calendar;
   if (!c.enabled) return false;
-  const L = layoutCalendar(c);
-  return p.x >= L.x && p.x <= L.x + L.width && p.y >= L.y && p.y <= L.y + L.height;
+  const b = calendarBounds(layoutCalendar(c));
+  return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
 }
 
 preview.addEventListener('pointerdown', (e) => {

@@ -1,4 +1,5 @@
 import { levelCss, type Level } from '../image/levels';
+import type { QuarterTurn } from '../render/source';
 import {
   buildMonthGrid,
   consecutiveMonths,
@@ -29,10 +30,12 @@ export interface CalendarSettings {
   monthGap: number;
   weekStart: WeekStart;
   holidays: boolean;
-  /** フレーム内での左上の位置と幅 (px) */
+  /** フレーム内での左上の位置 (回したときは外接矩形の左上) と、回す前のカレンダー自身の幅 (px) */
   x: number;
   y: number;
   width: number;
+  /** カレンダーの向き。時計回りに 90° 単位で、1 = 右に 90°, 3 = 左に 90° */
+  rotation: QuarterTurn;
   fontId: string;
   fontWeight: number;
   titleWeight: number;
@@ -76,10 +79,13 @@ export interface MonthLayout {
 }
 
 export interface CalendarLayout {
+  /** フレーム上の外接矩形の左上 */
   x: number;
   y: number;
+  /** 回す前のカレンダー自身の大きさ */
   width: number;
   height: number;
+  rotation: QuarterTurn;
   pad: number;
   cellW: number;
   titleH: number;
@@ -132,6 +138,7 @@ export function layoutCalendar(s: CalendarSettings): CalendarLayout {
     y: s.y,
     width: s.width,
     height,
+    rotation: s.rotation,
     pad,
     cellW,
     titleH,
@@ -141,6 +148,24 @@ export function layoutCalendar(s: CalendarSettings): CalendarLayout {
     weekdayFont,
     dayFont,
     months,
+  };
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** フレーム上でカレンダーが占める範囲。右か左に 90° 回したときは幅と高さが入れ替わる */
+export function calendarBounds(L: CalendarLayout): Rect {
+  const turned = L.rotation % 2 === 1;
+  return {
+    x: L.x,
+    y: L.y,
+    width: turned ? L.height : L.width,
+    height: turned ? L.width : L.height,
   };
 }
 
@@ -165,18 +190,42 @@ export function drawCalendar(
   family: string,
   part: CalendarPart,
 ): void {
+  ctx.save();
+  placeOnFrame(ctx, L);
   if (part !== 'content' && s.panel) {
     ctx.fillStyle = levelCss(s.panelColor);
     ctx.beginPath();
-    ctx.roundRect(L.x, L.y, L.width, L.height, Math.min(s.panelRadius, L.width / 2, L.height / 2));
+    ctx.roundRect(0, 0, L.width, L.height, Math.min(s.panelRadius, L.width / 2, L.height / 2));
     ctx.fill();
   }
-  if (part === 'panel') return;
+  if (part !== 'panel') {
+    // 横に並べた見出しのベースラインが揃うよう、すべての月の見出しをまとめて測る
+    ctx.font = cssFont(s.titleWeight, L.titleFont, family);
+    const titleShift = baselineShift(ctx, L.months.map((m) => m.title).join(''));
+    for (const m of L.months) drawMonth(ctx, s, L, m, family, titleShift);
+  }
+  ctx.restore();
+}
 
-  // 横に並べた見出しのベースラインが揃うよう、すべての月の見出しをまとめて測る
-  ctx.font = cssFont(s.titleWeight, L.titleFont, family);
-  const titleShift = baselineShift(ctx, L.months.map((m) => m.title).join(''));
-  for (const m of L.months) drawMonth(ctx, s, L, m, family, titleShift);
+/**
+ * カレンダー自身の左上を原点とする座標で描けるよう、フレーム上の位置と向きに合わせて座標系を動かす。
+ * 位置と大きさは整数なので、回しても罫線は画素の境目に揃う。
+ */
+function placeOnFrame(ctx: CanvasRenderingContext2D, L: CalendarLayout): void {
+  switch (L.rotation) {
+    case 1:
+      ctx.translate(L.x + L.height, L.y);
+      break;
+    case 2:
+      ctx.translate(L.x + L.width, L.y + L.height);
+      break;
+    case 3:
+      ctx.translate(L.x, L.y + L.width);
+      break;
+    default:
+      ctx.translate(L.x, L.y);
+  }
+  ctx.rotate((L.rotation * Math.PI) / 2);
 }
 
 /** 1 か月分の見出し・曜日・罫線・日付を描く */
@@ -188,9 +237,9 @@ function drawMonth(
   family: string,
   titleShift: number,
 ): void {
-  const left = L.x + L.pad + m.dx;
+  const left = L.pad + m.dx;
   const innerW = L.cellW * 7;
-  let top = L.y + L.pad + m.dy;
+  let top = L.pad + m.dy;
   const colX = (c: number) => left + L.cellW * (c + 0.5);
 
   if (L.titleH > 0) {

@@ -443,7 +443,28 @@
               <span data-i18n="cal.crisp">Draw text without anti-aliasing</span>
             </label>
 
-            <h3 data-i18n="cal.position">Position &amp; size</h3>
+            <h3 data-i18n="cal.position">Position, size &amp; rotation</h3>
+            <div class="field">
+              <span class="label" data-i18n="cal.rotation">Rotation</span>
+              <div class="segmented">
+                <label>
+                  <input type="radio" name="calRotation" value="0" data-bind="calendar.rotation" data-type="number" />
+                  <span data-i18n="cal.rotate0">None</span>
+                </label>
+                <label data-i18n-title="cal.rotateLeftTitle" title="Rotate 90° to the left">
+                  <input type="radio" name="calRotation" value="3" data-bind="calendar.rotation" data-type="number" />
+                  <span data-i18n="cal.rotateLeft">⟲ Left</span>
+                </label>
+                <label data-i18n-title="cal.rotateRightTitle" title="Rotate 90° to the right">
+                  <input type="radio" name="calRotation" value="1" data-bind="calendar.rotation" data-type="number" />
+                  <span data-i18n="cal.rotateRight">⟳ Right</span>
+                </label>
+                <label>
+                  <input type="radio" name="calRotation" value="2" data-bind="calendar.rotation" data-type="number" />
+                  <span>180°</span>
+                </label>
+              </div>
+            </div>
             <label class="field">
               <span class="label">
                 <span data-i18n="cal.width">Width</span> <output data-out="calendar.width" data-unit="px"></output>
@@ -465,6 +486,10 @@
               <button type="button" class="button" data-anchor="middle" data-i18n="cal.middle">Middle</button>
               <button type="button" class="button" data-anchor="bottom" data-i18n="cal.bottom">Bottom</button>
             </div>
+            <p class="meta" data-show-if="calendar.rotation!=0" data-i18n="cal.rotatedHint">
+              Top, Middle, and Bottom follow the calendar’s own direction (e.g. when rotated right, its bottom is the left
+              edge of the screen).
+            </p>
           </div>
         </details>
 
