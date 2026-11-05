@@ -62,6 +62,7 @@ export function defaultSettings(lang: Lang): AppSettings {
       weekdaySize: 34,
       daySize: 44,
       rowHeight: 72,
+      columnSpacing: 100,
       textColor: 0,
       sundayColor: 1,
       saturdayColor: 0,
@@ -236,8 +237,9 @@ export function inferCalendarAnchor(c: CalendarSettings, frame: Size): VerticalA
 }
 
 /**
- * 並べる月の数や並べ方、カレンダーの向きを変えたとき、文字の大きさ (1 マスの幅) が変わらないように幅を決め直す。
- * フレームに余白を残して収まらなければ縮める。before は変える前の設定。
+ * 並べる月の数や並べ方、カレンダーの向き、列の間隔を変えたとき、文字の大きさ (基準の長さ) が変わらないように
+ * 幅を決め直す。フレームに余白を残して収まらなければ縮める。before は変える前の設定。
+ * 幅と位置は before だけから決まるので、同じ before から何度呼んでも丸めの誤差はたまらない。
  *
  * 位置は読む向きのフレームで考え、anchor が top なら上の余白、bottom なら下の余白、
  * middle なら上下の中心の相対位置を保つ。左右は中心の相対位置を保つ。
@@ -258,9 +260,9 @@ export function rearrangeCalendar(
     current <= size ? Math.max(current, size - margin * 2) : size - margin * 2;
   const pad2 = c.padding * 2;
   const inner = Math.max(1, c.width - pad2);
-  // 内側の幅は 1 マスの幅に比例するので、比で求める
+  // 内側の幅は基準の長さに比例するので、比で求める
   const maxWidth = limit(before.width, view.width);
-  c.width = Math.round(Math.min(pad2 + (inner * prev.cellW) / layoutCalendar(c).cellW, maxWidth));
+  c.width = Math.round(Math.min(pad2 + (inner * prev.unit) / layoutCalendar(c).unit, maxWidth));
 
   // 高さもパディングを除けば幅に比例するので、収まらなければ同じ比で縮める
   const maxHeight = limit(prev.height, view.height);

@@ -116,12 +116,22 @@ const binder = new Binder(document, state, onSettingChange);
 
 // ---------- 設定の変更 ----------
 
-/** 並べる月の数・並べ方・向きの直前の値。変えたときに文字の大きさと位置を保つのに使う */
-function monthArrangement(): Pick<AppSettings['calendar'], 'months' | 'monthArrange' | 'rotation'> {
-  const { months, monthArrange, rotation } = state.calendar;
-  return { months, monthArrange, rotation };
+/** 並べる月の数・並べ方・向き・列の間隔の直前の値。変えたときに文字の大きさと位置を保つのに使う */
+function calendarArrangement(): Pick<
+  AppSettings['calendar'],
+  'months' | 'monthArrange' | 'rotation' | 'columnSpacing'
+> {
+  const { months, monthArrange, rotation, columnSpacing } = state.calendar;
+  return { months, monthArrange, rotation, columnSpacing };
 }
-let lastArrangement = monthArrangement();
+let lastArrangement = calendarArrangement();
+
+/**
+ * 列の間隔をスライダーで続けて変えている間の、変え始める前の設定。毎回ここから幅と位置を決め直すので、
+ * 丸めの誤差がたまらず、フレームに収まらず縮んでも元の間隔に戻せば元の大きさと位置に戻る。
+ * ほかの設定を変えたりカレンダーを動かしたりしたら忘れる。
+ */
+let spacingOrigin: AppSettings['calendar'] | null = null;
 
 /**
  * カレンダーを (読む向きで) 上・中央・下のどこに寄せて置いたか。月の数や並べ方、向きを変えたときに保つ。
@@ -144,10 +154,16 @@ function onSettingChange(path: string): void {
     placement.offsetY = 0;
   }
   if (path === 'calendar.fontId') populateWeightSelects();
-  if (path === 'calendar.months' || path === 'calendar.monthArrange' || path === 'calendar.rotation') {
-    rearrangeCalendar(state.calendar, { ...state.calendar, ...lastArrangement }, frame, calendarAnchor);
+  if (path === 'calendar.columnSpacing') {
+    spacingOrigin ??= { ...state.calendar, ...lastArrangement };
+    rearrangeCalendar(state.calendar, spacingOrigin, frame, calendarAnchor);
+  } else {
+    spacingOrigin = null;
+    if (path === 'calendar.months' || path === 'calendar.monthArrange' || path === 'calendar.rotation') {
+      rearrangeCalendar(state.calendar, { ...state.calendar, ...lastArrangement }, frame, calendarAnchor);
+    }
   }
-  lastArrangement = monthArrangement();
+  lastArrangement = calendarArrangement();
   if (path.startsWith('calendar.')) {
     clampCalendar(state.calendar, frame);
     if (/^calendar\.(fontId|fontWeight|titleWeight|titleFormat|weekdayFormat|months)$/.test(path)) void loadCalendarFont();
@@ -450,6 +466,7 @@ function endDrag(): void {
     // 動かさずに離しただけなら、置いた場所の扱いは変えない
     if (state.calendar.x !== drag.origX || state.calendar.y !== drag.origY) {
       calendarAnchor = inferCalendarAnchor(state.calendar, frame);
+      spacingOrigin = null;
     }
     scheduleSave();
   }

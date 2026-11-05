@@ -175,6 +175,24 @@ describe('layoutCalendar', () => {
     expect(L.months[1].dx).toBeCloseTo(L.cellW * 7);
   });
 
+  it('列の間隔が 100% なら、基準の長さは 1 マスの幅と同じ', () => {
+    const L = layoutCalendar(settings());
+    expect(L.unit).toBeCloseTo(L.cellW);
+    expect(L.dayFont).toBeCloseTo((L.cellW * 44) / 100);
+    expect(L.rowH).toBeCloseTo((L.cellW * 72) / 100);
+  });
+
+  it('列の間隔は 1 マスの幅だけを変え、文字の大きさ・行の高さ・月の間隔は基準の長さに合わせる', () => {
+    const L = layoutCalendar(settings({ months: 2, monthArrange: 'horizontal', columnSpacing: 150 }));
+    // 内側の幅 = 7 列 × 1.5 × 2 か月 + 月の間隔 0.5
+    const unit = (400 - 32) / 21.5;
+    expect(L.unit).toBeCloseTo(unit);
+    expect(L.cellW).toBeCloseTo(unit * 1.5);
+    expect(L.months[1].dx).toBeCloseTo(L.cellW * 7 + unit * 0.5);
+    expect(L.dayFont).toBeCloseTo((unit * 44) / 100);
+    expect(L.rowH).toBeCloseTo((unit * 72) / 100);
+  });
+
   it('フォントの読み込み用の文字に 2 か月分の見出しを含める', () => {
     const text = calendarText(settings({ month: 12, months: 2, titleFormat: 'en-full' }));
     expect(text).toContain('December 2026');
