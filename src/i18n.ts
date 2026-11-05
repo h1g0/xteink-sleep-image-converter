@@ -296,7 +296,7 @@ const ja: Record<MessageKey, string> = {
   'cal.crisp': '文字をアンチエイリアスなしで描く',
   'cal.position': '位置・大きさ・向き',
   'cal.rotation': '向き',
-  'cal.rotate0': '回さない',
+  'cal.rotate0': '0°',
   'cal.rotateLeft': '⟲ 左 90°',
   'cal.rotateLeftTitle': '左に 90° 回転',
   'cal.rotateRight': '⟳ 右 90°',
