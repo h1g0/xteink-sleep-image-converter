@@ -26,7 +26,7 @@ export interface CalendarSettings {
   /** year 年 month 月から何か月分を並べるか */
   months: MonthCount;
   monthArrange: MonthArrange;
-  /** 月と月の間隔。1 マスの幅に対する % */
+  /** 月と月の間隔。基準の長さ (titleSize などを参照) に対する % */
   monthGap: number;
   weekStart: WeekStart;
   holidays: boolean;
@@ -42,11 +42,16 @@ export interface CalendarSettings {
   titleFormat: TitleFormat;
   titleAlign: TitleAlign;
   weekdayFormat: WeekdayFormat;
-  /** 文字の大きさと行の高さ。1 マスの幅に対する % */
+  /**
+   * 文字の大きさと行の高さ。列の間隔が 100% のときの 1 マスの幅 (基準の長さ) に対する %。
+   * 列の間隔を変えても文字の大きさは変わらない
+   */
   titleSize: number;
   weekdaySize: number;
   daySize: number;
   rowHeight: number;
+  /** 列 (曜日) の間隔。基準の長さに対する % */
+  columnSpacing: number;
   textColor: Level;
   sundayColor: Level;
   saturdayColor: Level;
@@ -87,6 +92,9 @@ export interface CalendarLayout {
   height: number;
   rotation: QuarterTurn;
   pad: number;
+  /** 文字の大きさや行の高さ、月の間隔の基準になる長さ */
+  unit: number;
+  /** 1 列の幅 */
   cellW: number;
   titleH: number;
   weekdayH: number;
@@ -112,17 +120,20 @@ export function layoutCalendar(s: CalendarSettings): CalendarLayout {
   }));
   const horizontal = blocks.length > 1 && s.monthArrange === 'horizontal';
   const pad = s.padding;
-  // 横に並べるときは 7 マス × 月数と月の間隔で内側の幅を分け合う。間隔もマスの幅に比例させる
+  // 内側の幅を基準の長さ何個分で分けるか。1 列は列の間隔の分、月の間隔は月の間隔の分で、
+  // 横に並べるときは 7 列 × 月数と月の間隔で分け合う
+  const spacing = Math.max(1, s.columnSpacing) / 100;
   const gapRatio = Math.max(0, s.monthGap) / 100;
-  const columns = horizontal ? 7 * blocks.length + gapRatio * (blocks.length - 1) : 7;
-  const cellW = Math.max(1, s.width - pad * 2) / columns;
-  const gap = blocks.length > 1 ? cellW * gapRatio : 0;
-  const titleFont = (cellW * s.titleSize) / 100;
-  const weekdayFont = (cellW * s.weekdaySize) / 100;
-  const dayFont = (cellW * s.daySize) / 100;
+  const units = horizontal ? 7 * spacing * blocks.length + gapRatio * (blocks.length - 1) : 7 * spacing;
+  const unit = Math.max(1, s.width - pad * 2) / units;
+  const cellW = unit * spacing;
+  const gap = blocks.length > 1 ? unit * gapRatio : 0;
+  const titleFont = (unit * s.titleSize) / 100;
+  const weekdayFont = (unit * s.weekdaySize) / 100;
+  const dayFont = (unit * s.daySize) / 100;
   const titleH = blocks.some((b) => b.title) ? titleFont * 1.6 : 0;
   const weekdayH = s.weekdayFormat === 'none' ? 0 : weekdayFont * 1.9;
-  const rowH = (cellW * s.rowHeight) / 100;
+  const rowH = (unit * s.rowHeight) / 100;
   const blockH = (b: { grid: DayCell[][] }) => titleH + weekdayH + rowH * b.grid.length;
 
   const months: MonthLayout[] = [];
@@ -140,6 +151,7 @@ export function layoutCalendar(s: CalendarSettings): CalendarLayout {
     height,
     rotation: s.rotation,
     pad,
+    unit,
     cellW,
     titleH,
     weekdayH,
@@ -267,7 +279,7 @@ function drawMonth(
   }
 
   if (s.grid !== 'none') {
-    const lw = Math.max(1, Math.round(L.cellW * 0.025));
+    const lw = Math.max(1, Math.round(L.unit * 0.025));
     const line = (x: number, y: number, w: number, h: number) => ctx.fillRect(Math.round(x), Math.round(y), w, h);
     ctx.fillStyle = levelCss(s.gridColor);
     line(left, top - lw / 2, Math.round(innerW), lw);

@@ -202,3 +202,52 @@ describe('カレンダーの向き', () => {
     expect(b.y + b.height).toBeLessThanOrEqual(to.height);
   });
 });
+
+describe('列の間隔', () => {
+  const bounds = (c: CalendarSettings) => calendarBounds(layoutCalendar(c));
+
+  it('広げると文字の大きさを保ったまま幅を広げ、下の余白と左右の中心を保つ', () => {
+    const { c, frame } = placed('portrait', 'bottom', 300);
+    const before = layoutCalendar(c);
+    const bottom = frame.height - c.y - before.height;
+    const center = c.x + c.width / 2;
+
+    change(c, frame, 'bottom', { columnSpacing: 120 });
+    const after = layoutCalendar(c);
+    expect(c.width).toBe(Math.round(32 + (300 - 32) * 1.2));
+    expect(after.unit).toBeCloseTo(before.unit, 0);
+    expect(after.cellW).toBeCloseTo(before.cellW * 1.2, 0);
+    expect(after.height).toBe(before.height);
+    expect(frame.height - c.y - after.height).toBe(bottom);
+    expect(Math.abs(c.x + c.width / 2 - center)).toBeLessThanOrEqual(1);
+  });
+
+  it('スライダーのように変える前の設定から計算し直すと、収まらず縮めても元の間隔で元の幅と位置に戻る', () => {
+    const { c, frame } = placed('portrait', 'bottom', 454);
+    const origin = { ...c };
+    const slide = (spacing: number) => {
+      c.columnSpacing = spacing;
+      rearrangeCalendar(c, origin, frame, 'bottom');
+    };
+    for (let v = 99; v >= 50; v--) slide(v);
+    for (let v = 51; v <= 200; v++) slide(v);
+    expect(c.width).toBe(frame.width - margin(frame) * 2);
+    for (let v = 199; v >= 100; v--) slide(v);
+    expect({ x: c.x, y: c.y, width: c.width }).toEqual({ x: origin.x, y: origin.y, width: origin.width });
+  });
+
+  it('回したカレンダーでは、読む向きで左右に広がる', () => {
+    const { c, frame } = placed('portrait', 'bottom', 300, 1);
+    const before = bounds(c);
+    const unit = layoutCalendar(c).unit;
+
+    change(c, frame, 'bottom', { columnSpacing: 130 });
+    const after = bounds(c);
+    expect(layoutCalendar(c).unit).toBeCloseTo(unit, 0);
+    // 右に 90° 回すとカレンダーの幅はフレームの縦になる
+    expect(after.width).toBe(before.width);
+    expect(after.height).toBeGreaterThan(before.height);
+    expect(after.x).toBe(before.x);
+    expect(Math.abs(after.y + after.height / 2 - (before.y + before.height / 2))).toBeLessThanOrEqual(1);
+  });
+});
