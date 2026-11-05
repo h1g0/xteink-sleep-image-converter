@@ -24,6 +24,7 @@ Everything runs in the browser and your images are never uploaded. The only netw
   - Colors for text, Sundays and holidays, Saturdays, adjacent months and grid lines (chosen from the 4 gray levels)
   - Background panel (color, opacity, corner radius), text outline, and text without anti-aliasing
   - Drag the calendar on the preview to position it
+  - Rotate the calendar on its own in 90° steps (left, right or 180°), for example to match an image you rotated sideways. Top / Middle / Bottom then follow the calendar's own direction, and rotating keeps the text size and that placement
 - **UI language**: switch between English and Japanese at the top right. English is the default; Japanese is used only when your browser's language preferences rank Japanese above English. A language you pick is remembered
   - Switching changes only the interface text. The calendar's heading and weekday formats stay as you set them (only their defaults follow the language)
 

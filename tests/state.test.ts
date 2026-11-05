@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { layoutCalendar, type CalendarSettings } from '../src/calendar/render';
+import { calendarBounds, layoutCalendar, type CalendarSettings } from '../src/calendar/render';
 import { frameSize, type Size } from '../src/devices';
+import type { QuarterTurn } from '../src/render/source';
 import {
+  clampCalendar,
   defaultSettings,
   inferCalendarAnchor,
+  moveCalendarToFrame,
   placeCalendar,
   rearrangeCalendar,
   type VerticalAnchor,
 } from '../src/state';
 
 /** X3 のフレームに置いた 2026 年 11 月からのカレンダー。日曜始まりで 11 月・12 月とも 5 行 */
-function placed(orientation: 'portrait' | 'landscape', anchor: VerticalAnchor, width: number) {
+function placed(orientation: 'portrait' | 'landscape', anchor: VerticalAnchor, width: number, rotation: QuarterTurn = 0) {
   const frame = frameSize('x3', orientation);
-  const c: CalendarSettings = { ...defaultSettings('ja').calendar, year: 2026, month: 11, weekStart: 0, width };
+  const c: CalendarSettings = { ...defaultSettings('ja').calendar, year: 2026, month: 11, weekStart: 0, width, rotation };
   placeCalendar(c, frame, anchor);
   return { c, frame };
 }
@@ -95,5 +98,107 @@ describe('rearrangeCalendar', () => {
     change(c, frame, 'middle', { months: 2, monthArrange: 'vertical' });
     const { height } = layoutCalendar(c);
     expect(Math.abs(c.y - (frame.height - height) / 2)).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('カレンダーの向き', () => {
+  const bounds = (c: CalendarSettings) => calendarBounds(layoutCalendar(c));
+
+  it('右か左に 90° 回すと、フレーム上の範囲の幅と高さが入れ替わる', () => {
+    const { c } = placed('portrait', 'bottom', 300);
+    const L = layoutCalendar(c);
+    expect(bounds({ ...c, rotation: 1 })).toEqual({ x: c.x, y: c.y, width: L.height, height: L.width });
+    expect(bounds({ ...c, rotation: 2 })).toEqual({ x: c.x, y: c.y, width: L.width, height: L.height });
+    expect(bounds({ ...c, rotation: 3 })).toEqual({ x: c.x, y: c.y, width: L.height, height: L.width });
+  });
+
+  it('上・中央・下はカレンダーを読む向きで決まる', () => {
+    const frame = frameSize('x3', 'portrait');
+    const m = margin(frame);
+    // 右に回すとカレンダーの下はフレームの左、左に回すとフレームの右、180° ならフレームの上
+    const { c: right } = placed('portrait', 'bottom', 300, 1);
+    const { c: left } = placed('portrait', 'bottom', 300, 3);
+    const { c: flipped } = placed('portrait', 'bottom', 300, 2);
+    expect(bounds(right).x).toBe(m);
+    expect(frame.width - bounds(left).x - bounds(left).width).toBe(m);
+    expect(bounds(flipped).y).toBe(m);
+
+    // 左右の中央は、回したときはフレームの上下の中央になる
+    const b = bounds(right);
+    expect(Math.abs(b.y + b.height / 2 - frame.height / 2)).toBeLessThanOrEqual(1);
+
+    const { c: top } = placed('portrait', 'top', 300, 1);
+    expect(frame.width - bounds(top).x - bounds(top).width).toBe(m);
+  });
+
+  it('置いた場所を読む向きで判断する', () => {
+    for (const rotation of [0, 1, 2, 3] as const) {
+      for (const anchor of ['top', 'middle', 'bottom'] as const) {
+        const { c, frame } = placed('portrait', anchor, 300, rotation);
+        expect(inferCalendarAnchor(c, frame)).toBe(anchor);
+      }
+    }
+  });
+
+  it('回したカレンダーの幅はフレームの高さまで広げられ、フレームからははみ出さない', () => {
+    const frame = frameSize('x3', 'landscape');
+    const c: CalendarSettings = { ...defaultSettings('ja').calendar, rotation: 1, width: 2000, x: 9999, y: 9999 };
+    clampCalendar(c, frame);
+    const b = bounds(c);
+    expect(b.height).toBeLessThanOrEqual(frame.height);
+    expect(b.width).toBeLessThanOrEqual(frame.width);
+    expect(b.x + b.width).toBeLessThanOrEqual(frame.width);
+    expect(b.y + b.height).toBeLessThanOrEqual(frame.height);
+  });
+
+  it('向きを変えると文字の大きさを保ち、読む向きでの下の余白と左右の中心を保つ', () => {
+    const { c, frame } = placed('portrait', 'bottom', 300);
+    const width = c.width;
+    change(c, frame, 'bottom', { rotation: 1 });
+    expect(c.width).toBe(width);
+    const b = bounds(c);
+    expect(b.x).toBe(margin(frame));
+    expect(Math.abs(b.y + b.height / 2 - frame.height / 2)).toBeLessThanOrEqual(1);
+    expect(inferCalendarAnchor(c, frame)).toBe('bottom');
+  });
+
+  it('回して戻すと元の幅と位置に戻る', () => {
+    for (const anchor of ['top', 'middle', 'bottom'] as const) {
+      const { c, frame } = placed('portrait', anchor, 300);
+      const original = { x: c.x, y: c.y, width: c.width };
+      change(c, frame, anchor, { rotation: 3 });
+      change(c, frame, anchor, { rotation: 0 });
+      expect(c.width).toBe(original.width);
+      expect(Math.abs(c.x - original.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(c.y - original.y)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('回して収まらなければ、余白を残して収まるまで縮める', () => {
+    // 横向きのフレームいっぱいに 2 か月を横に並べてから右に回す
+    const { c, frame } = placed('landscape', 'bottom', 700);
+    change(c, frame, 'bottom', { months: 2, monthArrange: 'horizontal' });
+    change(c, frame, 'bottom', { rotation: 1 });
+    const b = bounds(c);
+    expect(c.width).toBeLessThanOrEqual(frame.height - margin(frame) * 2);
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.y).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(frame.width);
+    expect(b.y + b.height).toBeLessThanOrEqual(frame.height);
+  });
+
+  it('端末の向きを変えても、回したカレンダーはフレームに収まる', () => {
+    const { c } = placed('landscape', 'bottom', 700, 2);
+    const from = frameSize('x3', 'landscape');
+    const to = frameSize('x3', 'portrait');
+    c.rotation = 0;
+    clampCalendar(c, from);
+    c.rotation = 1;
+    clampCalendar(c, from);
+    moveCalendarToFrame(c, from, to);
+    const b = bounds(c);
+    expect(c.width).toBeLessThanOrEqual(to.height);
+    expect(b.x + b.width).toBeLessThanOrEqual(to.width);
+    expect(b.y + b.height).toBeLessThanOrEqual(to.height);
   });
 });
