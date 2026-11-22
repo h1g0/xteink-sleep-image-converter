@@ -4,13 +4,13 @@ export type DitherMethod = 'none' | 'floyd-steinberg' | 'atkinson' | 'stucki' | 
 
 export interface DitherSettings {
   method: DitherMethod;
-  /** 0〜100。誤差拡散なら拡散する誤差の割合、Bayer なら閾値の揺らぎの大きさ */
+  /** 0–100. For error diffusion, the fraction of error diffused; for Bayer, the amount of threshold jitter */
   strength: number;
-  /** 誤差拡散で行ごとに走査方向を反転し、斜めの模様を出にくくする */
+  /** Reverse the scan direction on every row in error diffusion to reduce diagonal artifacts */
   serpentine: boolean;
 }
 
-/** [dx, dy, 重み] */
+/** [dx, dy, weight] */
 type Tap = readonly [number, number, number];
 
 interface Kernel {
@@ -28,7 +28,7 @@ const KERNELS: Record<'floyd-steinberg' | 'atkinson' | 'stucki', Kernel> = {
       [1, 1, 1],
     ],
   },
-  // 誤差の 6/8 だけを拡散するので、コントラストが強くノイズの少ない仕上がりになる
+  // Diffuses only 6/8 of the error, giving a high-contrast, low-noise result
   atkinson: {
     divisor: 8,
     taps: [
@@ -66,7 +66,7 @@ const BAYER8 = [
 ];
 
 /**
- * 0〜255 のグレー値を 4 階調のレベル (0 = 黒 〜 3 = 白) に減色する。
+ * Quantizes 0–255 gray values to 4 levels (0 = black to 3 = white).
  */
 export function quantize(gray: Float32Array, w: number, h: number, s: DitherSettings): Uint8Array {
   const out = new Uint8Array(w * h);
@@ -98,7 +98,7 @@ function diffuse(
   serpentine: boolean,
   out: Uint8Array,
 ): void {
-  // 左右と下に余白を付けたバッファで計算し、拡散先の範囲チェックを省く。余白に落ちた誤差は捨てる
+  // Work in a buffer padded on the left, right and bottom to skip bounds checks on diffusion targets. Error that lands in the padding is discarded
   const margin = 2;
   const pw = w + margin * 2;
   const buf = new Float32Array(pw * (h + margin));

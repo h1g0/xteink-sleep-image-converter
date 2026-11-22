@@ -11,7 +11,7 @@ import {
 import { defaultSettings } from '../src/state';
 
 describe('japaneseHolidays', () => {
-  it('2026 年 (内閣府の公表と一致)', () => {
+  it('2026 (matches the Cabinet Office announcement)', () => {
     const list = [...japaneseHolidays(2026).entries()]
       .map(([k, name]) => {
         const [m, d] = k.split('-').map(Number);
@@ -41,7 +41,7 @@ describe('japaneseHolidays', () => {
     ]);
   });
 
-  it('2025 年の振替休日', () => {
+  it('2025 substitute holidays', () => {
     const h = japaneseHolidays(2025);
     expect(h.get(holidayKey(2, 24))).toBe('振替休日');
     expect(h.get(holidayKey(5, 6))).toBe('振替休日');
@@ -51,7 +51,7 @@ describe('japaneseHolidays', () => {
     expect(h.get(holidayKey(9, 23))).toBe('秋分の日');
   });
 
-  it('2019 年の即位関連の休日', () => {
+  it('2019 enthronement-related holidays', () => {
     const h = japaneseHolidays(2019);
     expect(h.get(holidayKey(4, 30))).toBe('国民の休日');
     expect(h.get(holidayKey(5, 1))).toBe('天皇の即位の日');
@@ -61,7 +61,7 @@ describe('japaneseHolidays', () => {
 });
 
 describe('buildMonthGrid', () => {
-  it('2026 年 11 月 (1 日が日曜)', () => {
+  it('November 2026 (the 1st is a Sunday)', () => {
     const sun = buildMonthGrid(2026, 11, 0);
     expect(sun.length).toBe(5);
     expect(sun[0][0]).toMatchObject({ month: 11, day: 1, weekday: 0, inMonth: true });
@@ -74,13 +74,13 @@ describe('buildMonthGrid', () => {
     expect(mon[0][6]).toMatchObject({ month: 11, day: 1, weekday: 0, inMonth: true });
   });
 
-  it('2027 年 2 月は日曜始まりで 4 行に収まる', () => {
-    // 2027-02-01 は月曜
+  it('February 2027 fits in 4 rows with weeks starting on Sunday', () => {
+    // 2027-02-01 is a Monday
     expect(buildMonthGrid(2027, 2, 1).length).toBe(4);
     expect(buildMonthGrid(2027, 2, 0).length).toBe(5);
   });
 
-  it('年をまたぐ前後の月にも祝日が入る', () => {
+  it('holidays are filled in for adjacent months across a year boundary', () => {
     const grid = buildMonthGrid(2026, 12, 0);
     const last = grid[grid.length - 1];
     const jan1 = last.find((c) => c.month === 1 && c.day === 1);
@@ -89,13 +89,13 @@ describe('buildMonthGrid', () => {
 });
 
 describe('labels', () => {
-  it('週の始まりに合わせて曜日を並べる', () => {
+  it('orders weekdays according to the start of the week', () => {
     expect(weekdayHeaders('ja', 0).map((h) => h.label).join('')).toBe('日月火水木金土');
     expect(weekdayHeaders('ja', 1).map((h) => h.label).join('')).toBe('月火水木金土日');
     expect(weekdayHeaders('en3', 1)[6]).toEqual({ label: 'Sun', weekday: 0 });
   });
 
-  it('タイトル', () => {
+  it('title', () => {
     expect(formatTitle('ja-full', 2026, 11)).toBe('2026年11月');
     expect(formatTitle('wareki', 2026, 11)).toBe('令和8年11月');
     expect(formatTitle('wareki', 2019, 5)).toBe('令和元年5月');
@@ -106,7 +106,7 @@ describe('labels', () => {
 });
 
 describe('consecutiveMonths', () => {
-  it('年をまたぐと翌年の 1 月になる', () => {
+  it('rolls over to January of the next year', () => {
     expect(consecutiveMonths(2026, 11, 2)).toEqual([
       { year: 2026, month: 11 },
       { year: 2026, month: 12 },
@@ -119,7 +119,7 @@ describe('consecutiveMonths', () => {
 });
 
 describe('layoutCalendar', () => {
-  /** 2026 年 11 月 (日曜始まりで 5 行) と 12 月 (5 行) */
+  /** November 2026 (5 rows starting on Sunday) and December (5 rows) */
   function settings(overrides: Partial<CalendarSettings> = {}): CalendarSettings {
     return {
       ...defaultSettings('ja').calendar,
@@ -135,7 +135,7 @@ describe('layoutCalendar', () => {
     };
   }
 
-  it('1 か月なら月は 1 つだけで、内側の左上に置く', () => {
+  it('a single month has one month placed at the inner top-left', () => {
     const L = layoutCalendar(settings({ months: 1 }));
     expect(L.months).toHaveLength(1);
     expect(L.months[0]).toMatchObject({ dx: 0, dy: 0, year: 2026, month: 11, title: '2026年11月' });
@@ -143,7 +143,7 @@ describe('layoutCalendar', () => {
     expect(L.height).toBe(Math.ceil(32 + L.titleH + L.weekdayH + L.rowH * 5));
   });
 
-  it('縦に並べると 1 マスの幅は 1 か月と同じで、間隔をあけて下に積む', () => {
+  it('arranged vertically, the cell width matches a single month and months stack downward with spacing', () => {
     const one = layoutCalendar(settings({ months: 1 }));
     const L = layoutCalendar(settings({ months: 2, monthArrange: 'vertical' }));
     expect(L.cellW).toBeCloseTo(one.cellW);
@@ -158,8 +158,8 @@ describe('layoutCalendar', () => {
     expect(L.height).toBe(Math.ceil(32 + blockH * 2 + gap));
   });
 
-  it('横に並べると幅を 2 か月と間隔で分け合い、高さは行の多い方に合わせる', () => {
-    // 2027 年 1 月は日曜始まりで 6 行、2 月は 5 行
+  it('arranged horizontally, the width is shared by 2 months and the gap, and the height follows the month with more rows', () => {
+    // Starting on Sunday, January 2027 has 6 rows and February has 5
     const L = layoutCalendar(settings({ year: 2027, month: 1, months: 2, monthArrange: 'horizontal' }));
     expect(L.months[0].grid).toHaveLength(6);
     expect(L.months[1].grid).toHaveLength(5);
@@ -169,22 +169,22 @@ describe('layoutCalendar', () => {
     expect(L.height).toBe(Math.ceil(32 + L.titleH + L.weekdayH + L.rowH * 6));
   });
 
-  it('間隔 0 なら月どうしがすき間なく並ぶ', () => {
+  it('with 0 spacing the months sit flush against each other', () => {
     const L = layoutCalendar(settings({ months: 2, monthArrange: 'horizontal', monthGap: 0 }));
     expect(L.cellW).toBeCloseTo((400 - 32) / 14);
     expect(L.months[1].dx).toBeCloseTo(L.cellW * 7);
   });
 
-  it('列の間隔が 100% なら、基準の長さは 1 マスの幅と同じ', () => {
+  it('with 100% column spacing, the base unit equals the cell width', () => {
     const L = layoutCalendar(settings());
     expect(L.unit).toBeCloseTo(L.cellW);
     expect(L.dayFont).toBeCloseTo((L.cellW * 44) / 100);
     expect(L.rowH).toBeCloseTo((L.cellW * 72) / 100);
   });
 
-  it('列の間隔は 1 マスの幅だけを変え、文字の大きさ・行の高さ・月の間隔は基準の長さに合わせる', () => {
+  it('column spacing changes only the cell width; text size, row height and month spacing follow the base unit', () => {
     const L = layoutCalendar(settings({ months: 2, monthArrange: 'horizontal', columnSpacing: 150 }));
-    // 内側の幅 = 7 列 × 1.5 × 2 か月 + 月の間隔 0.5
+    // Inner width = 7 columns × 1.5 × 2 months + month spacing 0.5
     const unit = (400 - 32) / 21.5;
     expect(L.unit).toBeCloseTo(unit);
     expect(L.cellW).toBeCloseTo(unit * 1.5);
@@ -193,15 +193,15 @@ describe('layoutCalendar', () => {
     expect(L.rowH).toBeCloseTo((unit * 72) / 100);
   });
 
-  it('フォントの読み込み用の文字に 2 か月分の見出しを含める', () => {
+  it('the characters for font loading include headings for both months', () => {
     const text = calendarText(settings({ month: 12, months: 2, titleFormat: 'en-full' }));
     expect(text).toContain('December 2026');
     expect(text).toContain('January 2027');
   });
 });
 
-describe('drawCalendar の向き', () => {
-  /** translate と rotate だけを追い、背景パネルの四隅がフレームのどこに描かれるかを記録する */
+describe('drawCalendar orientation', () => {
+  /** Tracks only translate and rotate, recording where on the frame the four corners of the background panel are drawn */
   function panelCorners(s: CalendarSettings): { first: [number, number]; corners: [number, number][] } {
     let m = [1, 0, 0, 1, 0, 0]; // a b c d e f
     const apply = (x: number, y: number): [number, number] => [
@@ -237,9 +237,9 @@ describe('drawCalendar の向き', () => {
 
   const base: CalendarSettings = { ...defaultSettings('ja').calendar, year: 2026, month: 11, x: 30, y: 40, width: 300 };
 
-  it('回してもフレーム上の範囲にぴったり描き、カレンダーの左上は回した向きの角に来る', () => {
+  it('draws exactly within the area on the frame when rotated, with the calendar top-left at the corner for that orientation', () => {
     const L = layoutCalendar(base);
-    // 回したカレンダーの左上 (見出しの始まり) が来るフレーム上の角
+    // The corner of the frame where the rotated calendar top-left (start of the heading) lands
     const expected: Record<number, [number, number]> = {
       0: [30, 40],
       1: [30 + L.height, 40],

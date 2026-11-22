@@ -1,9 +1,9 @@
 /**
- * 日本の祝日・休日を計算する。
+ * Computes Japanese national holidays and substitute holidays.
  *
- * 2007 年以降の祝日法 (振替休日・国民の休日の規定) を前提にしている。
- * 春分・秋分の日は 1980〜2099 年に使える近似式で求めるため、正式には前年の官報で確定する。
- * 今後の法改正には追従しない。
+ * Assumes the National Holidays Act as in effect since 2007 (rules for substitute holidays and "citizens' holidays").
+ * The vernal and autumnal equinox days are computed with an approximation valid for 1980–2099; officially they are fixed in the previous year's Official Gazette.
+ * Future amendments to the law are not reflected.
  */
 
 const cache = new Map<number, Map<string, string>>();
@@ -12,7 +12,7 @@ export function holidayKey(month: number, day: number): string {
   return `${month}-${day}`;
 }
 
-/** 指定した年の祝日・休日。キーは holidayKey(月, 日) */
+/** Holidays of the given year. Keys are holidayKey(month, day) */
 export function japaneseHolidays(year: number): Map<string, string> {
   let map = cache.get(year);
   if (!map) {
@@ -46,7 +46,7 @@ function computeHolidays(y: number): Map<string, string> {
   add(5, 3, '憲法記念日');
   add(5, 4, 'みどりの日');
   add(5, 5, 'こどもの日');
-  // 2020・2021 年は東京オリンピックに合わせて海の日・山の日・スポーツの日が移動した
+  // In 2020 and 2021, Marine Day, Mountain Day and Sports Day were moved for the Tokyo Olympics
   if (y === 2020) add(7, 23, '海の日');
   else if (y === 2021) add(7, 22, '海の日');
   else add(7, nthMonday(y, 7, 3), '海の日');
@@ -69,7 +69,7 @@ function computeHolidays(y: number): Map<string, string> {
   const result = new Map(base);
   const isBase = (d: Date) => d.getFullYear() === y && base.has(holidayKey(d.getMonth() + 1, d.getDate()));
 
-  // 国民の休日: 前日と翌日がどちらも祝日である平日
+  // Citizens' holiday: a weekday whose previous and next days are both holidays
   for (let d = new Date(y, 0, 2); d.getFullYear() === y; d.setDate(d.getDate() + 1)) {
     const key = holidayKey(d.getMonth() + 1, d.getDate());
     if (base.has(key)) continue;
@@ -78,7 +78,7 @@ function computeHolidays(y: number): Map<string, string> {
     if (isBase(prev) && isBase(next)) result.set(key, '国民の休日');
   }
 
-  // 振替休日: 祝日が日曜に当たったら、その後で最初の祝日でない日
+  // Substitute holiday: when a holiday falls on a Sunday, the first following day that is not a holiday
   for (const key of base.keys()) {
     const [m, day] = key.split('-').map(Number);
     if (new Date(y, m - 1, day).getDay() !== 0) continue;

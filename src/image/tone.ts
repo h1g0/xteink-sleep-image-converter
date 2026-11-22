@@ -1,26 +1,26 @@
 export interface ToneSettings {
-  /** 明るさのヒストグラムを 0〜255 いっぱいに広げる */
+  /** Stretch the brightness histogram to fill the full 0–255 range */
   autoLevels: boolean;
   /** -100〜100 */
   brightness: number;
   /** -100〜100 */
   contrast: number;
-  /** 0.3〜3。1 で変化なし、大きいほど中間調が明るくなる */
+  /** 0.3–3. 1 means no change; larger values brighten the midtones */
   gamma: number;
   /** 0〜100 */
   sharpen: number;
   invert: boolean;
 }
 
-/** BT.601 の輝度を 0〜255 の整数で返す */
+/** Returns BT.601 luma as an integer in 0–255 */
 export function luminance(r: number, g: number, b: number): number {
   return (77 * r + 150 * g + 29 * b + 128) >> 8;
 }
 
-/** 自動レベル補正で切り捨てる、暗部・明部それぞれの画素の割合 */
+/** Fraction of pixels clipped at each of the dark and bright ends by auto levels */
 const AUTO_LEVEL_CLIP = 0.005;
 
-/** ヒストグラムから自動レベル補正の範囲を求める。補正の必要がなければ null */
+/** Computes the auto-levels range from a histogram. Returns null if no correction is needed */
 export function autoLevelRange(hist: Uint32Array): [number, number] | null {
   let total = 0;
   for (let i = 0; i < 256; i++) total += hist[i];
@@ -40,7 +40,7 @@ export function autoLevelRange(hist: Uint32Array): [number, number] | null {
   return [lo, hi];
 }
 
-/** 輝度 0〜255 から補正後の値への変換表を作る */
+/** Builds a lookup table from luma 0–255 to the corrected value */
 export function buildToneLut(s: ToneSettings, range: [number, number] | null): Float32Array {
   const lut = new Float32Array(256);
   const k = s.contrast >= 0 ? 1 + s.contrast / 50 : 1 + s.contrast / 100;
@@ -58,7 +58,7 @@ export function buildToneLut(s: ToneSettings, range: [number, number] | null): F
   return lut;
 }
 
-/** 3×3 のぼかしを使ったアンシャープマスク。gray をその場で書き換える */
+/** Unsharp mask using a 3×3 blur. Modifies gray in place */
 export function sharpen(gray: Float32Array, w: number, h: number, amount: number): void {
   if (amount <= 0) return;
   const k = amount / 50;

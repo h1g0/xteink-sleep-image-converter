@@ -80,7 +80,7 @@ body {
   align-items: start;
 }
 
-/* ---------- プレビュー ---------- */
+/* ---------- Preview ---------- */
 
 .preview-pane {
   position: sticky;
@@ -108,7 +108,7 @@ body {
 .stage {
   position: relative;
   display: grid;
-  /* 行と列の大きさを確定させ、canvas の max-width / max-height: 100% を効かせる */
+  /* Give rows and columns definite sizes so the canvas max-width / max-height: 100% take effect */
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   background: var(--stage);
@@ -196,7 +196,7 @@ body {
   font-size: 12px;
 }
 
-/* ---------- 設定パネル ---------- */
+/* ---------- Settings panel ---------- */
 
 .controls {
   display: flex;

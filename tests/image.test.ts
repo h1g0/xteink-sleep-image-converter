@@ -5,7 +5,7 @@ import { rotate90 } from '../src/image/rotate';
 import { autoLevelRange, buildToneLut } from '../src/image/tone';
 
 describe('nearestLevel', () => {
-  it('ネイティブ階調はそのまま', () => {
+  it('native gray levels are unchanged', () => {
     expect(LEVEL_GRAY.map(nearestLevel)).toEqual([0, 1, 2, 3]);
   });
 });
@@ -14,7 +14,7 @@ describe('quantize', () => {
   const methods: DitherMethod[] = ['none', 'floyd-steinberg', 'atkinson', 'stucki', 'bayer'];
 
   for (const method of methods) {
-    it(`${method}: ネイティブ階調の一様な面はノイズなく変換される`, () => {
+    it(`${method}: a uniform area at a native gray level converts without noise`, () => {
       for (const level of [0, 1, 2, 3]) {
         const gray = new Float32Array(64 * 64).fill(LEVEL_GRAY[level]);
         const out = quantize(gray, 64, 64, { method, strength: 100, serpentine: true });
@@ -24,7 +24,7 @@ describe('quantize', () => {
   }
 
   for (const method of ['floyd-steinberg', 'stucki', 'bayer'] as const) {
-    it(`${method}: 中間の明るさの平均がおおむね保たれる`, () => {
+    it(`${method}: the average of intermediate brightness is roughly preserved`, () => {
       const w = 128;
       const h = 128;
       const gray = new Float32Array(w * h).fill(120);
@@ -43,14 +43,14 @@ describe('rotate90', () => {
   // d e f
   const src = new Uint8Array([1, 2, 3, 4, 5, 6]);
 
-  it('時計回り', () => {
+  it('clockwise', () => {
     // d a
     // e b
     // f c
     expect([...rotate90(src, 3, 2, 'cw')]).toEqual([4, 1, 5, 2, 6, 3]);
   });
 
-  it('反時計回り', () => {
+  it('counterclockwise', () => {
     // c f
     // b e
     // a d
@@ -61,18 +61,18 @@ describe('rotate90', () => {
 describe('tone', () => {
   const neutral = { autoLevels: false, brightness: 0, contrast: 0, gamma: 1, sharpen: 0, invert: false };
 
-  it('無補正の変換表は恒等写像', () => {
+  it('the lookup table with no adjustments is the identity', () => {
     const lut = buildToneLut(neutral, null);
     for (let i = 0; i < 256; i++) expect(lut[i]).toBeCloseTo(i, 4);
   });
 
-  it('反転', () => {
+  it('invert', () => {
     const lut = buildToneLut({ ...neutral, invert: true }, null);
     expect(lut[0]).toBe(255);
     expect(lut[255]).toBe(0);
   });
 
-  it('自動レベル補正の範囲', () => {
+  it('auto-levels range', () => {
     const hist = new Uint32Array(256);
     hist[50] = 1000;
     hist[200] = 1000;

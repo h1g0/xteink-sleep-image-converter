@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // GitHub Pages などのサブディレクトリにそのまま置けるよう相対パスで出力する
+  // Emit relative paths so the build can be served from a subdirectory (e.g. GitHub Pages) as-is
   base: './',
   test: {
     environment: 'node',

@@ -1,16 +1,16 @@
 import type { Lang } from './i18n';
 
-/** セレクトボックスのグループ。表示名は i18n の fontGroup.* */
+/** Group in the select box. Display names are i18n fontGroup.* */
 export type FontGroup = 'gothic' | 'mincho' | 'maru' | 'design' | 'latin' | 'system' | 'custom';
 
 export interface FontPreset {
   id: string;
-  /** 表示名。日本語名がなければ英語名を使う */
+  /** Display name. The English name is used when there is no Japanese name */
   label: { en: string; ja?: string };
   group: FontGroup;
-  /** Canvas の font に渡す font-family の値 */
+  /** font-family value passed to the Canvas font */
   family: string;
-  /** Google Fonts の css2 API に渡す family パラメータ */
+  /** family parameter passed to the Google Fonts css2 API */
   google?: string;
   weights: number[];
 }
@@ -20,9 +20,9 @@ const JP_SERIF_FALLBACK = '"Yu Mincho", YuMincho, "Hiragino Mincho ProN", serif'
 
 interface GoogleOptions {
   ja?: string;
-  /** 省略時はフォント名 */
+  /** Defaults to the font name */
   en?: string;
-  /** 代替フォントを明朝体にする */
+  /** Use a serif (Mincho) fallback font */
   serif?: boolean;
 }
 
@@ -86,7 +86,7 @@ export function fontLabel(preset: FontPreset, lang: Lang): string {
   return (lang === 'ja' && preset.label.ja) || preset.label.en;
 }
 
-/** 指定した太さに一番近い、そのフォントで使える太さ */
+/** The weight available in the font that is closest to the requested weight */
 export function closestWeight(preset: FontPreset, weight: number): number {
   return preset.weights.reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best));
 }
@@ -114,9 +114,9 @@ function loadStylesheet(spec: string): Promise<void> {
 }
 
 /**
- * Canvas に描く前に、text の描画に必要なフォントファイルを読み込んでおく。
- * Google Fonts の日本語フォントは文字種ごとに分割配信されるので、使う文字を渡す。
- * 読み込めなかった場合は false (描画は代替フォントで行われる)。
+ * Loads the font files needed to draw text before drawing to the Canvas.
+ * Google Fonts serves Japanese fonts split into subsets by character, so pass the characters to be used.
+ * Returns false if loading fails (drawing then falls back to a substitute font).
  */
 export async function ensureFontLoaded(preset: FontPreset, weights: number[], text: string): Promise<boolean> {
   try {
@@ -128,7 +128,7 @@ export async function ensureFontLoaded(preset: FontPreset, weights: number[], te
   }
 }
 
-/** ユーザーが選んだフォントファイルを登録してプリセットとして返す */
+/** Registers a font file chosen by the user and returns it as a preset */
 export async function registerFontFile(file: File): Promise<FontPreset> {
   const n = customPresets.length + 1;
   const name = `UserFont${n}`;

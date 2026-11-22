@@ -10,7 +10,7 @@ permissions:
   pages: write
   id-token: write
 
-# 実行中のデプロイは途中で止めず、後から来たものを待たせる
+# Don't cancel an in-progress deployment; queue later ones behind it
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -31,7 +31,7 @@ jobs:
 
       - run: npm test
 
-      # tsc による型チェックと vite build
+      # Type check with tsc, then vite build
       - run: npm run build
 
       - uses: actions/configure-pages@v6

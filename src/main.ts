@@ -68,7 +68,7 @@ const stage = $<HTMLDivElement>('stage');
 const zoomInput = $<HTMLInputElement>('zoom');
 const fontSelect = $<HTMLSelectElement>('font-select');
 
-// ---------- 選択肢の生成 ----------
+// ---------- Building options ----------
 
 function populateLevelSelects(): void {
   const labels = ([0, 1, 2, 3] as const).map((level) => t(`level.${level}`));
@@ -91,7 +91,7 @@ function populateFontSelect(): void {
   fontSelect.replaceChildren(...groups.values());
 }
 
-/** フォントで使える太さに選択肢を合わせ、設定値も使える太さに寄せる */
+/** Matches the weight options to those available in the font, and snaps the setting to an available weight */
 function populateWeightSelects(): void {
   const preset = getFontPreset(state.calendar.fontId);
   state.calendar.fontId = preset.id;
@@ -114,9 +114,9 @@ clampCalendar(state.calendar, frame);
 
 const binder = new Binder(document, state, onSettingChange);
 
-// ---------- 設定の変更 ----------
+// ---------- Settings changes ----------
 
-/** 並べる月の数・並べ方・向き・列の間隔の直前の値。変えたときに文字の大きさと位置を保つのに使う */
+/** Previous values of month count, arrangement, orientation and column spacing. Used to keep text size and position when they change */
 function calendarArrangement(): Pick<
   AppSettings['calendar'],
   'months' | 'monthArrange' | 'rotation' | 'columnSpacing'
@@ -127,15 +127,15 @@ function calendarArrangement(): Pick<
 let lastArrangement = calendarArrangement();
 
 /**
- * 列の間隔をスライダーで続けて変えている間の、変え始める前の設定。毎回ここから幅と位置を決め直すので、
- * 丸めの誤差がたまらず、フレームに収まらず縮んでも元の間隔に戻せば元の大きさと位置に戻る。
- * ほかの設定を変えたりカレンダーを動かしたりしたら忘れる。
+ * While the column spacing slider is being dragged, the settings from before the drag started. Width and position are recomputed from this each time,
+ * so rounding errors do not accumulate, and if the calendar shrank to fit the frame, returning to the original spacing restores the original size and position.
+ * Forgotten when other settings change or the calendar is moved.
  */
 let spacingOrigin: AppSettings['calendar'] | null = null;
 
 /**
- * カレンダーを (読む向きで) 上・中央・下のどこに寄せて置いたか。月の数や並べ方、向きを変えたときに保つ。
- * カレンダーがフレームいっぱいになると位置からは判断できないので、置いたときの値を覚えておく。
+ * Whether the calendar was placed at the top, middle or bottom (in reading orientation). Kept when the month count, arrangement or orientation changes.
+ * Once the calendar fills the frame this cannot be inferred from its position, so the value at placement time is remembered.
  */
 let calendarAnchor: VerticalAnchor = inferCalendarAnchor(state.calendar, frame);
 
@@ -176,7 +176,7 @@ function onSettingChange(path: string): void {
   requestRender();
 }
 
-/** data-bind で扱っていない入力欄の表示を設定に合わせる */
+/** Syncs inputs not handled by data-bind with the settings */
 function syncControls(): void {
   const c = state.calendar;
   $<HTMLInputElement>('cal-month').value = `${c.year}-${String(c.month).padStart(2, '0')}`;
@@ -205,7 +205,7 @@ function formatBytes(n: number): string {
   return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(2)} MB` : `${(n / 1024).toFixed(1)} KB`;
 }
 
-// ---------- フォント ----------
+// ---------- Fonts ----------
 
 let fontStatus: MessageKey | null = null;
 function showFontStatus(key: MessageKey | null): void {
@@ -242,7 +242,7 @@ $<HTMLInputElement>('font-file').addEventListener('change', async (e) => {
   }
 });
 
-// ---------- 描画 ----------
+// ---------- Rendering ----------
 
 let renderQueued = false;
 function requestRender(): void {
@@ -285,9 +285,9 @@ function render(): void {
   stage.dataset.renderMs = elapsed.toFixed(1);
 }
 
-// ---------- 画像の読み込み ----------
+// ---------- Image loading ----------
 
-/** 画像の読み込み状況。言語を切り替えたときに表示し直せるよう、文言ではなく状態を持つ */
+/** Image loading status. Holds state rather than text so it can be redisplayed when the language changes */
 type SourceStatus = { kind: 'none' } | { kind: 'loaded' | 'error'; name: string | null };
 let sourceStatus: SourceStatus = { kind: 'none' };
 
@@ -305,7 +305,7 @@ function showSourceStatus(status: SourceStatus): void {
       : t('preview.loadError', { name });
 }
 
-/** name が null のときは貼り付けた画像として表示する */
+/** When name is null, it is shown as a pasted image */
 async function loadImage(blob: Blob, name: string | null): Promise<void> {
   try {
     const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
@@ -351,12 +351,12 @@ document.addEventListener('paste', (e) => {
   }
 });
 
-// ---------- 画像の配置 ----------
+// ---------- Image placement ----------
 
 function setZoom(zoom: number, anchor?: { x: number; y: number }): void {
   const next = Math.min(4, Math.max(0.1, zoom));
   if (anchor) {
-    // anchor の下にある画像の点が動かないように中心をずらす
+    // Shift the center so the image point under anchor stays fixed
     const f = next / placement.zoom;
     const cx = frame.width / 2 + placement.offsetX;
     const cy = frame.height / 2 + placement.offsetY;
@@ -391,7 +391,7 @@ $('center-image').addEventListener('click', () => {
 
 function rotate(delta: 1 | 3): void {
   placement.rotation = ((placement.rotation + delta) % 4) as QuarterTurn;
-  // 中心からのずれも一緒に回す
+  // Rotate the offset from the center as well
   const { offsetX: x, offsetY: y } = placement;
   [placement.offsetX, placement.offsetY] = delta === 1 ? [-y, x] : [y, -x];
   requestRender();
@@ -404,7 +404,7 @@ $('flip').addEventListener('click', () => {
   requestRender();
 });
 
-// ---------- プレビュー上のドラッグとホイール ----------
+// ---------- Dragging and wheel on the preview ----------
 
 type Drag =
   | { kind: 'image'; startX: number; startY: number; origX: number; origY: number }
@@ -463,7 +463,7 @@ preview.addEventListener('pointermove', (e) => {
 
 function endDrag(): void {
   if (drag?.kind === 'calendar') {
-    // 動かさずに離しただけなら、置いた場所の扱いは変えない
+    // If released without moving, don't change how the placement is treated
     if (state.calendar.x !== drag.origX || state.calendar.y !== drag.origY) {
       calendarAnchor = inferCalendarAnchor(state.calendar, frame);
       spacingOrigin = null;
@@ -490,7 +490,7 @@ $<HTMLInputElement>('actual-size').addEventListener('change', (e) => {
   stage.classList.toggle('actual', (e.currentTarget as HTMLInputElement).checked);
 });
 
-// ---------- カレンダーの年月と位置 ----------
+// ---------- Calendar year/month and position ----------
 
 function setMonth(year: number, month: number): void {
   const d = new Date(year, month - 1, 1);
@@ -519,7 +519,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-anchor]
   });
 }
 
-// ---------- 保存 ----------
+// ---------- Saving ----------
 
 $('download').addEventListener('click', () => {
   if (!lastLevels) render();
@@ -551,9 +551,9 @@ $('reset-settings').addEventListener('click', () => {
   calendarAnchor = inferCalendarAnchor(state.calendar, frame);
 });
 
-// ---------- 表示言語 ----------
+// ---------- Display language ----------
 
-/** 画面の文言だけを切り替える。カレンダーの見出しや曜日の書式は設定のまま変えない */
+/** Switches only the UI text. The calendar heading and weekday formats keep their settings */
 function applyLanguage(lang: Lang): void {
   setLang(lang);
   translateDocument();

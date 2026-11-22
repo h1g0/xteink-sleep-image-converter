@@ -10,21 +10,21 @@ export interface RenderParams {
   frame: Size;
   source: SourceImage | null;
   placement: Placement;
-  /** 画像がない部分の色 */
+  /** Color of areas not covered by the image */
   background: Level;
   tone: ToneSettings;
   dither: DitherSettings;
   calendar: CalendarSettings;
-  /** カレンダーに使う CSS の font-family */
+  /** CSS font-family used for the calendar */
   calendarFamily: string;
 }
 
 /**
- * フレームを 4 階調のレベル配列 (0 = 黒 〜 3 = 白) に描く。
+ * Renders the frame into a 4-level array (0 = black to 3 = white).
  *
- * 1. 画像を配置してグレースケール化し、トーン補正する
- * 2. 半透明のカレンダー背景は画像に混ぜてからディザリングする
- * 3. 文字や不透明な背景はディザリングの後に重ね、ディザのざらつきが乗らないようにする
+ * 1. Place the image, convert it to grayscale and apply tone adjustments
+ * 2. Blend a semi-transparent calendar background into the image before dithering
+ * 3. Overlay text and opaque backgrounds after dithering so they stay free of dither noise
  */
 export class Renderer {
   private readonly work = document.createElement('canvas');
@@ -98,7 +98,7 @@ export class Renderer {
   }
 }
 
-/** レイヤーの画素をレベル配列に重ねる。半透明の縁は下の階調と混ぜてから最も近い階調にする */
+/** Composites layer pixels onto the level array. Semi-transparent edges are blended with the level below, then snapped to the nearest level */
 function overlay(levels: Uint8Array, rgba: Uint8ClampedArray, crisp: boolean): void {
   for (let i = 0; i < levels.length; i++) {
     const a = rgba[i * 4 + 3];
@@ -113,8 +113,8 @@ function overlay(levels: Uint8Array, rgba: Uint8ClampedArray, crisp: boolean): v
 }
 
 /**
- * 編集用のフレームから、端末に保存する縦向きの画素配列にする。
- * 端末を時計回りに倒して持つなら、画像は反時計回りに回して保存すると正しい向きで見える。
+ * Converts the editing frame into the portrait pixel array saved to the device.
+ * If the device is held turned clockwise, the image must be saved rotated counterclockwise to appear upright.
  */
 export function toDeviceLevels(
   levels: Uint8Array,
