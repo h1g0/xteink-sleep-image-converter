@@ -1,6 +1,6 @@
 import { holidayKey, japaneseHolidays } from './holidays';
 
-/** 0 = 日曜始まり, 1 = 月曜始まり */
+/** 0 = week starts on Sunday, 1 = week starts on Monday */
 export type WeekStart = 0 | 1;
 
 export type TitleFormat =
@@ -20,13 +20,13 @@ export interface DayCell {
   year: number;
   month: number;
   day: number;
-  /** 0 = 日曜 〜 6 = 土曜 */
+  /** 0 = Sunday to 6 = Saturday */
   weekday: number;
   inMonth: boolean;
   holiday?: string;
 }
 
-/** year 年 month 月から始まる count か月分の年月。年をまたぐ場合は翌年に繰り上げる */
+/** count consecutive year/month pairs starting from year/month, rolling over into the next year as needed */
 export function consecutiveMonths(year: number, month: number, count: number): { year: number; month: number }[] {
   return Array.from({ length: count }, (_, i) => {
     const d = new Date(year, month - 1 + i, 1);
@@ -34,7 +34,7 @@ export function consecutiveMonths(year: number, month: number, count: number): {
   });
 }
 
-/** 月のカレンダーを週ごとの行に分けて返す。行数は 4〜6 */
+/** Returns a month's calendar split into weekly rows. There are 4–6 rows */
 export function buildMonthGrid(year: number, month: number, weekStart: WeekStart): DayCell[][] {
   const first = new Date(year, month - 1, 1);
   const lead = (first.getDay() - weekStart + 7) % 7;
@@ -68,7 +68,7 @@ const WEEKDAY_LABELS: Record<Exclude<WeekdayFormat, 'none'>, string[]> = {
   en1: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
 };
 
-/** 週の始まりの順に並べた曜日名と曜日番号 */
+/** Weekday labels and numbers, ordered from the start of the week */
 export function weekdayHeaders(format: WeekdayFormat, weekStart: WeekStart): { label: string; weekday: number }[] {
   if (format === 'none') return [];
   const labels = WEEKDAY_LABELS[format];
@@ -100,7 +100,7 @@ export function formatTitle(format: TitleFormat, year: number, month: number): s
     case 'ja-month':
       return `${month}月`;
     case 'wareki': {
-      // 令和は 2019 年 5 月から
+      // The Reiwa era starts in May 2019
       if (year < 2019 || (year === 2019 && month < 5)) return `平成${year - 1988}年${month}月`;
       const n = year - 2018;
       return `令和${n === 1 ? '元' : n}年${month}月`;

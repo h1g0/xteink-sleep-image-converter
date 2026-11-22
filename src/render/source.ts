@@ -2,14 +2,14 @@ import type { Size } from '../devices';
 
 export type QuarterTurn = 0 | 1 | 2 | 3;
 
-/** 読み込んだ画像をフレームのどこにどう置くか */
+/** Where and how the loaded image is placed in the frame */
 export interface Placement {
-  /** 画面をちょうど埋める倍率を 1 とした拡大率 */
+  /** Zoom factor, where 1 is the scale that exactly fills the frame */
   zoom: number;
-  /** 画像の中心のフレーム中心からのずれ (フレームの px) */
+  /** Offset of the image center from the frame center (in frame px) */
   offsetX: number;
   offsetY: number;
-  /** 時計回りに 90° 単位 */
+  /** Clockwise, in 90° steps */
   rotation: QuarterTurn;
   flipH: boolean;
 }
@@ -23,8 +23,8 @@ interface MipLevel {
 }
 
 /**
- * 読み込んだ画像。大きく縮小して描くときにエイリアシングが出ないよう、
- * 半分ずつ縮小した画像を必要になった分だけ作って使い回す。
+ * A loaded image. To avoid aliasing when drawing at a large reduction, it lazily builds
+ * successively halved copies as needed and reuses them.
  */
 export class SourceImage {
   readonly width: number;
@@ -40,7 +40,7 @@ export class SourceImage {
     this.mips = [{ image: bitmap, width: bitmap.width, height: bitmap.height }];
   }
 
-  /** 元画像を scale 倍で描くのに使う画像。そこからの縮小率が 0.5〜1 に収まるものを返す */
+  /** The image to use for drawing the original at the given scale. Returns one whose remaining reduction factor is within 0.5–1 */
   pick(scale: number): MipLevel {
     let level = 0;
     for (;;) {
@@ -73,13 +73,13 @@ function rotatedSize(src: Size, rotation: QuarterTurn): Size {
   return rotation % 2 === 0 ? src : { width: src.height, height: src.width };
 }
 
-/** 画像でフレームをちょうど埋める倍率 */
+/** Scale at which the image exactly fills the frame */
 export function coverScale(src: Size, frame: Size, rotation: QuarterTurn): number {
   const r = rotatedSize(src, rotation);
   return Math.max(frame.width / r.width, frame.height / r.height);
 }
 
-/** 画像全体がフレームにちょうど収まる倍率 */
+/** Scale at which the whole image exactly fits within the frame */
 export function containScale(src: Size, frame: Size, rotation: QuarterTurn): number {
   const r = rotatedSize(src, rotation);
   return Math.min(frame.width / r.width, frame.height / r.height);

@@ -1,9 +1,9 @@
 /**
- * data-bind="a.b" を付けた入力要素と設定オブジェクトのプロパティを結び付ける小さな仕組み。
+ * A small mechanism that binds input elements marked with data-bind="a.b" to properties of a settings object.
  *
- * - data-type="number" を付けた select / radio は値を数値として扱う (range と number は常に数値)
- * - data-out="a.b" を付けた要素には値を表示する (data-unit で単位、data-digits で小数点以下の桁数)
- * - data-show-if="a.b" / "a.b=値" / "a.b!=値" を付けた要素は条件に合うときだけ表示する
+ * - select / radio elements with data-type="number" treat their value as a number (range and number inputs are always numeric)
+ * - Elements with data-out="a.b" display the value (data-unit sets the unit, data-digits the number of decimal places)
+ * - Elements with data-show-if="a.b" / "a.b=value" / "a.b!=value" are shown only when the condition holds
  */
 
 type Bindable = HTMLInputElement | HTMLSelectElement;
@@ -58,7 +58,7 @@ export class Binder {
     this.refresh();
   }
 
-  /** 設定オブジェクトの値を入力要素に反映する */
+  /** Reflects the settings object values into the input elements */
   refresh(): void {
     for (const el of this.controls) {
       const v = getPath(this.state, el.dataset.bind!);

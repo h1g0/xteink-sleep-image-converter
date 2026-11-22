@@ -25,7 +25,7 @@ export interface AppSettings {
 
 const STORAGE_KEY = 'xteink-sleep-converter:settings:v1';
 
-/** 既定値。カレンダーの見出し・曜日・祝日だけは画面の言語に合わせる */
+/** Defaults. Only the calendar heading, weekday labels and holidays follow the UI language */
 export function defaultSettings(lang: Lang): AppSettings {
   const now = new Date();
   const ja = lang === 'ja';
@@ -88,8 +88,8 @@ export function defaultSettings(lang: Lang): AppSettings {
 }
 
 /**
- * 保存しておいた設定を読み込む。年月は保存せず、いつ開いても今月になる。
- * 項目が増えたときのために、既定値に上書きする形で読み込む。
+ * Loads the saved settings. The year and month are not saved, so the current month is shown whenever the app opens.
+ * Settings are merged over the defaults so that newly added fields get default values.
  */
 export function loadSettings(lang: Lang): AppSettings {
   const defaults = defaultSettings(lang);
@@ -119,7 +119,7 @@ export function saveSettings(s: AppSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   } catch {
-    // プライベートブラウズなどで保存できなくても動作には影響しない
+    // Failing to save (e.g. in private browsing) does not affect functionality
   }
 }
 
@@ -127,30 +127,30 @@ export function clearSettings(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // 同上
+    // Same as above
   }
 }
 
 export type VerticalAnchor = 'top' | 'middle' | 'bottom';
 
-/** カレンダーを上下の端に寄せて置くときの、フレームの端からの余白 */
+/** Margin from the frame edge when the calendar is placed against the top or bottom edge */
 function frameMargin(frame: Size): number {
   return Math.round(Math.min(frame.width, frame.height) * 0.04);
 }
 
 /*
- * カレンダーを回したときは、置き方 (上・中央・下、左右の中心、大きさの上限) を
- * カレンダーを読む向きに回したフレーム (以下「読む向きのフレーム」) で考える。
- * 右に 90° 回したカレンダーなら、カレンダーの上はフレームの右、下はフレームの左になる。
- * 設定に持つ x, y はフレーム上 (プレビューで見たまま) の外接矩形の左上。
+ * When the calendar is rotated, its placement (top / middle / bottom, horizontal center, maximum size)
+ * is considered in the frame rotated to the calendar's reading orientation (the "reading frame" below).
+ * For a calendar rotated 90° to the right, the top of the calendar is the right of the frame and the bottom is the left.
+ * The x, y kept in the settings are the top-left of the bounding box on the frame (as seen in the preview).
  */
 
-/** 読む向きのフレームの大きさ。右か左に 90° 回したときは幅と高さが入れ替わる */
+/** Size of the reading frame. Width and height are swapped when rotated 90° right or left */
 export function calendarView(frame: Size, rotation: QuarterTurn): Size {
   return rotation % 2 === 0 ? frame : { width: frame.height, height: frame.width };
 }
 
-/** 読む向きのフレームでの、カレンダーの左上の位置 */
+/** Top-left position of the calendar in the reading frame */
 function viewPosition(c: CalendarSettings, frame: Size): { x: number; y: number } {
   const { width: w, height: h } = layoutCalendar(c);
   switch (c.rotation) {
@@ -165,7 +165,7 @@ function viewPosition(c: CalendarSettings, frame: Size): { x: number; y: number 
   }
 }
 
-/** 読む向きのフレームでの左上の位置から、フレーム上の位置を決める (viewPosition の逆) */
+/** Converts a top-left position in the reading frame into a position on the frame (inverse of viewPosition) */
 function setViewPosition(c: CalendarSettings, frame: Size, x: number, y: number): void {
   const { width: w, height: h } = layoutCalendar(c);
   switch (c.rotation) {
@@ -187,7 +187,7 @@ function setViewPosition(c: CalendarSettings, frame: Size, x: number, y: number)
   }
 }
 
-/** カレンダーを (読む向きで) 左右中央・指定した高さに置く */
+/** Places the calendar horizontally centered at the given height (in reading orientation) */
 export function placeCalendar(c: CalendarSettings, frame: Size, anchor: VerticalAnchor): void {
   const margin = frameMargin(frame);
   const view = calendarView(frame, c.rotation);
@@ -198,7 +198,7 @@ export function placeCalendar(c: CalendarSettings, frame: Size, anchor: Vertical
   clampCalendar(c, frame);
 }
 
-/** カレンダーがフレームからはみ出さないよう、大きさと位置を調整する */
+/** Adjusts the calendar size and position so it does not extend beyond the frame */
 export function clampCalendar(c: CalendarSettings, frame: Size): void {
   const view = calendarView(frame, c.rotation);
   c.width = Math.max(120, Math.min(Math.round(c.width), view.width));
@@ -211,7 +211,7 @@ export function clampCalendar(c: CalendarSettings, frame: Size): void {
   c.y = Math.round(Math.min(Math.max(c.y, 0), Math.max(0, frame.height - box.height)));
 }
 
-/** フレームの大きさが変わったとき、カレンダーの中心の相対位置を保って移す */
+/** When the frame size changes, moves the calendar while keeping its center's relative position */
 export function moveCalendarToFrame(c: CalendarSettings, from: Size, to: Size): void {
   const box = calendarBounds(layoutCalendar(c));
   const cx = (box.x + box.width / 2) / from.width;
@@ -224,8 +224,8 @@ export function moveCalendarToFrame(c: CalendarSettings, from: Size, to: Size): 
 }
 
 /**
- * カレンダーを (読む向きで) 上・中央・下のどこに寄せて置いているかを、上下の余白から判断する。
- * 余白の差が丸めの誤差程度なら中央とみなす。
+ * Determines from the top and bottom margins whether the calendar is placed at the top, middle or bottom (in reading orientation).
+ * If the margins differ only by about a rounding error, it is treated as middle.
  */
 export function inferCalendarAnchor(c: CalendarSettings, frame: Size): VerticalAnchor {
   const view = calendarView(frame, c.rotation);
@@ -237,12 +237,12 @@ export function inferCalendarAnchor(c: CalendarSettings, frame: Size): VerticalA
 }
 
 /**
- * 並べる月の数や並べ方、カレンダーの向き、列の間隔を変えたとき、文字の大きさ (基準の長さ) が変わらないように
- * 幅を決め直す。フレームに余白を残して収まらなければ縮める。before は変える前の設定。
- * 幅と位置は before だけから決まるので、同じ before から何度呼んでも丸めの誤差はたまらない。
+ * When the number of months, their arrangement, the calendar orientation or the column spacing changes, recomputes
+ * the width so the text size (the base unit) stays the same. Shrinks it if it does not fit in the frame with margins. before is the settings prior to the change.
+ * Width and position depend only on before, so calling this repeatedly from the same before does not accumulate rounding errors.
  *
- * 位置は読む向きのフレームで考え、anchor が top なら上の余白、bottom なら下の余白、
- * middle なら上下の中心の相対位置を保つ。左右は中心の相対位置を保つ。
+ * Position is considered in the reading frame: with anchor top the top margin is kept, with bottom the bottom margin,
+ * and with middle the relative vertical center. Horizontally, the relative center is kept.
  */
 export function rearrangeCalendar(
   c: CalendarSettings,
@@ -255,16 +255,16 @@ export function rearrangeCalendar(
   const prevView = calendarView(frame, before.rotation);
   const prevPos = viewPosition(before, frame);
   const view = calendarView(frame, c.rotation);
-  // 上限はフレームから余白を除いた大きさ。もともと余白にかかるほど大きくしてあった分は、フレームに収まる限り狭めない
+  // The limit is the frame size minus margins. If it was already large enough to overlap the margins, do not shrink it as long as it fits in the frame
   const limit = (current: number, size: number) =>
     current <= size ? Math.max(current, size - margin * 2) : size - margin * 2;
   const pad2 = c.padding * 2;
   const inner = Math.max(1, c.width - pad2);
-  // 内側の幅は基準の長さに比例するので、比で求める
+  // The inner width is proportional to the base unit, so compute it by ratio
   const maxWidth = limit(before.width, view.width);
   c.width = Math.round(Math.min(pad2 + (inner * prev.unit) / layoutCalendar(c).unit, maxWidth));
 
-  // 高さもパディングを除けば幅に比例するので、収まらなければ同じ比で縮める
+  // Excluding padding, the height is also proportional to the width, so shrink by the same ratio if it does not fit
   const maxHeight = limit(prev.height, view.height);
   const { height } = layoutCalendar(c);
   if (height > maxHeight && height > pad2) {
@@ -272,7 +272,7 @@ export function rearrangeCalendar(
   }
 
   const next = layoutCalendar(c);
-  // 向きを変えないときは比が 1 になり、もとの中心をそのまま保つ
+  // When the orientation does not change, the ratio is 1 and the original center is kept as-is
   const x = (prevPos.x + prev.width / 2) * (view.width / prevView.width) - next.width / 2;
   const y =
     anchor === 'top'

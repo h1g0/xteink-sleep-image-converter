@@ -13,28 +13,28 @@ import {
 
 export type GridStyle = 'none' | 'header' | 'all';
 export type TitleAlign = 'left' | 'center' | 'right';
-/** 並べる月の数 */
+/** Number of months to show */
 export type MonthCount = 1 | 2;
-/** 2 か月以上を並べるときの向き。vertical = 縦に積む, horizontal = 横に並べる */
+/** Arrangement when showing 2 or more months. vertical = stacked, horizontal = side by side */
 export type MonthArrange = 'vertical' | 'horizontal';
 
 export interface CalendarSettings {
   enabled: boolean;
   year: number;
-  /** 1〜12。2 か月以上を並べるときは最初の月 */
+  /** 1–12. The first month when showing 2 or more months */
   month: number;
-  /** year 年 month 月から何か月分を並べるか */
+  /** How many months to show, starting from year/month */
   months: MonthCount;
   monthArrange: MonthArrange;
-  /** 月と月の間隔。基準の長さ (titleSize などを参照) に対する % */
+  /** Spacing between months, as a % of the base unit (see titleSize etc.) */
   monthGap: number;
   weekStart: WeekStart;
   holidays: boolean;
-  /** フレーム内での左上の位置 (回したときは外接矩形の左上) と、回す前のカレンダー自身の幅 (px) */
+  /** Top-left position in the frame (top-left of the bounding box when rotated) and the calendar's own unrotated width (px) */
   x: number;
   y: number;
   width: number;
-  /** カレンダーの向き。時計回りに 90° 単位で、1 = 右に 90°, 3 = 左に 90° */
+  /** Calendar orientation, clockwise in 90° steps: 1 = 90° right, 3 = 90° left */
   rotation: QuarterTurn;
   fontId: string;
   fontWeight: number;
@@ -43,14 +43,14 @@ export interface CalendarSettings {
   titleAlign: TitleAlign;
   weekdayFormat: WeekdayFormat;
   /**
-   * 文字の大きさと行の高さ。列の間隔が 100% のときの 1 マスの幅 (基準の長さ) に対する %。
-   * 列の間隔を変えても文字の大きさは変わらない
+   * Text sizes and row height, as a % of the cell width at 100% column spacing (the base unit).
+   * Changing the column spacing does not change the text size
    */
   titleSize: number;
   weekdaySize: number;
   daySize: number;
   rowHeight: number;
-  /** 列 (曜日) の間隔。基準の長さに対する % */
+  /** Spacing of columns (weekdays), as a % of the base unit */
   columnSpacing: number;
   textColor: Level;
   sundayColor: Level;
@@ -68,13 +68,13 @@ export interface CalendarSettings {
   outline: boolean;
   outlineColor: Level;
   outlineWidth: number;
-  /** 文字のアンチエイリアスを使わず 2 値でくっきり描く */
+  /** Draw text crisply in two tones without anti-aliasing */
   crisp: boolean;
 }
 
-/** 1 か月分の表の位置と中身 */
+/** Position and contents of one month's table */
 export interface MonthLayout {
-  /** パディングの内側の左上からの位置 (px) */
+  /** Position relative to the top-left inside the padding (px) */
   dx: number;
   dy: number;
   year: number;
@@ -84,17 +84,17 @@ export interface MonthLayout {
 }
 
 export interface CalendarLayout {
-  /** フレーム上の外接矩形の左上 */
+  /** Top-left of the bounding box on the frame */
   x: number;
   y: number;
-  /** 回す前のカレンダー自身の大きさ */
+  /** The calendar's own size before rotation */
   width: number;
   height: number;
   rotation: QuarterTurn;
   pad: number;
-  /** 文字の大きさや行の高さ、月の間隔の基準になる長さ */
+  /** Base unit for text sizes, row height and month spacing */
   unit: number;
-  /** 1 列の幅 */
+  /** Width of one column */
   cellW: number;
   titleH: number;
   weekdayH: number;
@@ -102,11 +102,11 @@ export interface CalendarLayout {
   titleFont: number;
   weekdayFont: number;
   dayFont: number;
-  /** 並べる順 (縦なら上から、横なら左から) */
+  /** In display order (top to bottom when vertical, left to right when horizontal) */
   months: MonthLayout[];
 }
 
-/** 年月で選んだ月から、並べる月の数だけ年月を返す */
+/** Returns the year/month pairs for the configured number of months, starting from the selected month */
 function calendarMonths(s: CalendarSettings): { year: number; month: number }[] {
   return consecutiveMonths(s.year, s.month, s.months === 2 ? 2 : 1);
 }
@@ -120,8 +120,8 @@ export function layoutCalendar(s: CalendarSettings): CalendarLayout {
   }));
   const horizontal = blocks.length > 1 && s.monthArrange === 'horizontal';
   const pad = s.padding;
-  // 内側の幅を基準の長さ何個分で分けるか。1 列は列の間隔の分、月の間隔は月の間隔の分で、
-  // 横に並べるときは 7 列 × 月数と月の間隔で分け合う
+  // How many base units the inner width is divided into. Each column takes the column spacing and each month gap takes the month spacing;
+  // when arranged horizontally, it is shared among 7 columns × the number of months plus the month gaps
   const spacing = Math.max(1, s.columnSpacing) / 100;
   const gapRatio = Math.max(0, s.monthGap) / 100;
   const units = horizontal ? 7 * spacing * blocks.length + gapRatio * (blocks.length - 1) : 7 * spacing;
@@ -170,7 +170,7 @@ export interface Rect {
   height: number;
 }
 
-/** フレーム上でカレンダーが占める範囲。右か左に 90° 回したときは幅と高さが入れ替わる */
+/** Area the calendar occupies on the frame. Width and height are swapped when rotated 90° right or left */
 export function calendarBounds(L: CalendarLayout): Rect {
   const turned = L.rotation % 2 === 1;
   return {
@@ -181,7 +181,7 @@ export function calendarBounds(L: CalendarLayout): Rect {
   };
 }
 
-/** フォントの読み込みに使う、カレンダーに描く文字の一覧 */
+/** The characters drawn on the calendar, used for loading fonts */
 export function calendarText(s: CalendarSettings): string {
   const titles = calendarMonths(s).map(({ year, month }) => formatTitle(s.titleFormat, year, month));
   const labels = weekdayHeaders(s.weekdayFormat, 0).map((h) => h.label);
@@ -189,9 +189,9 @@ export function calendarText(s: CalendarSettings): string {
 }
 
 /**
- * - panel: 背景パネルだけ
- * - content: 文字と罫線だけ
- * - all: 両方
+ * - panel: background panel only
+ * - content: text and grid lines only
+ * - all: both
  */
 export type CalendarPart = 'panel' | 'content' | 'all';
 
@@ -211,7 +211,7 @@ export function drawCalendar(
     ctx.fill();
   }
   if (part !== 'panel') {
-    // 横に並べた見出しのベースラインが揃うよう、すべての月の見出しをまとめて測る
+    // Measure all month headings together so that headings arranged side by side share a baseline
     ctx.font = cssFont(s.titleWeight, L.titleFont, family);
     const titleShift = baselineShift(ctx, L.months.map((m) => m.title).join(''));
     for (const m of L.months) drawMonth(ctx, s, L, m, family, titleShift);
@@ -220,8 +220,8 @@ export function drawCalendar(
 }
 
 /**
- * カレンダー自身の左上を原点とする座標で描けるよう、フレーム上の位置と向きに合わせて座標系を動かす。
- * 位置と大きさは整数なので、回しても罫線は画素の境目に揃う。
+ * Transforms the coordinate system to the calendar's position and orientation on the frame, so drawing can use coordinates with the calendar's own top-left as the origin.
+ * Positions and sizes are integers, so grid lines stay aligned to pixel boundaries even when rotated.
  */
 function placeOnFrame(ctx: CanvasRenderingContext2D, L: CalendarLayout): void {
   switch (L.rotation) {
@@ -240,7 +240,7 @@ function placeOnFrame(ctx: CanvasRenderingContext2D, L: CalendarLayout): void {
   ctx.rotate((L.rotation * Math.PI) / 2);
 }
 
-/** 1 か月分の見出し・曜日・罫線・日付を描く */
+/** Draws one month's heading, weekday labels, grid lines and dates */
 function drawMonth(
   ctx: CanvasRenderingContext2D,
   s: CalendarSettings,
@@ -313,8 +313,8 @@ function cssFont(weight: number, size: number, family: string): string {
 }
 
 /**
- * 文字の実際の形の上下中央を行の中心に合わせるための、ベースラインのずらし量。
- * 同じ行の文字は sample でまとめて測り、ベースラインを揃える。
+ * Baseline offset that aligns the vertical center of the glyphs' actual shapes with the center of the row.
+ * Text in the same row is measured together via sample so the baselines line up.
  */
 function baselineShift(ctx: CanvasRenderingContext2D, sample: string): number {
   const m = ctx.measureText(sample);

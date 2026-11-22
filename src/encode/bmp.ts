@@ -20,12 +20,12 @@ export function bmpFileSize(width: number, height: number, bitDepth: BmpBitDepth
 }
 
 /**
- * 4 階調のレベル配列 (0 = 黒 〜 3 = 白) を非圧縮 BMP にする。
+ * Encodes a 4-level array (0 = black to 3 = white) as an uncompressed BMP.
  *
- * パレット形式ではインデックス 0〜3 に端末のネイティブ階調 (0, 85, 170, 255) を入れ、
- * 残りのエントリは黒で埋める。CrossPoint などのファームウェアはパレットが
- * ネイティブ階調だけで構成されていると再ディザリングせずにそのまま表示する。
- * 行は一般的なボトムアップ順で格納する。
+ * Palette formats put the device's native gray levels (0, 85, 170, 255) at indices 0–3
+ * and fill the remaining entries with black. Firmware such as CrossPoint displays the image
+ * as-is without re-dithering when the palette consists only of native gray levels.
+ * Rows are stored in the usual bottom-up order.
  */
 export function encodeBmp(levels: Uint8Array, width: number, height: number, bitDepth: BmpBitDepth): Uint8Array {
   const colors = paletteSize(bitDepth);
@@ -44,7 +44,7 @@ export function encodeBmp(levels: Uint8Array, width: number, height: number, bit
   // BITMAPINFOHEADER
   view.setUint32(14, INFO_HEADER_SIZE, true);
   view.setInt32(18, width, true);
-  view.setInt32(22, height, true); // 正の値 = ボトムアップ
+  view.setInt32(22, height, true); // Positive value = bottom-up
   view.setUint16(26, 1, true); // planes
   view.setUint16(28, bitDepth, true);
   view.setUint32(30, 0, true); // BI_RGB
@@ -54,7 +54,7 @@ export function encodeBmp(levels: Uint8Array, width: number, height: number, bit
   view.setUint32(46, colors, true); // biClrUsed
   view.setUint32(50, colors === 0 ? 0 : LEVEL_GRAY.length, true); // biClrImportant
 
-  // パレット (B, G, R, 0)
+  // Palette (B, G, R, 0)
   for (let i = 0; i < LEVEL_GRAY.length && i < colors; i++) {
     const g = LEVEL_GRAY[i];
     const p = FILE_HEADER_SIZE + INFO_HEADER_SIZE + i * 4;

@@ -350,8 +350,8 @@ export function getLang(): Lang {
 }
 
 /**
- * ブラウザの言語設定を優先度の高い順に見て、最初に見つかった対応言語を返す。
- * 日本語が英語より上にある場合だけ日本語になり、どちらもなければ英語にする。
+ * Walks the browser language preferences in priority order and returns the first supported language.
+ * Japanese is chosen only when it ranks above English; if neither is present, English is used.
  */
 export function preferredLang(languages: readonly string[]): Lang {
   for (const tag of languages) {
@@ -361,13 +361,13 @@ export function preferredLang(languages: readonly string[]): Lang {
   return 'en';
 }
 
-/** 画面で選んで保存しておいた言語、なければブラウザの言語設定から決める */
+/** The language selected in the UI and saved, or else one derived from the browser language settings */
 export function detectLang(): Lang {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'en' || saved === 'ja') return saved;
   } catch {
-    // 保存できない環境ではブラウザの設定に従う
+    // Where storage is unavailable, follow the browser settings
   }
   return preferredLang(navigator.languages?.length ? navigator.languages : [navigator.language]);
 }
@@ -377,7 +377,7 @@ export function setLang(lang: Lang): void {
   try {
     localStorage.setItem(STORAGE_KEY, lang);
   } catch {
-    // 同上
+    // Same as above
   }
 }
 
@@ -385,14 +385,14 @@ export function isMessageKey(key: string): key is MessageKey {
   return key in en;
 }
 
-/** {name} の形の差し込みに対応した翻訳 */
+/** Translation with support for {name}-style placeholders */
 export function t(key: MessageKey, params: Record<string, string | number> = {}): string {
   return MESSAGES[current][key].replace(/\{(\w+)\}/g, (m, name: string) => (name in params ? String(params[name]) : m));
 }
 
 /**
- * data-i18n (本文)、data-i18n-title (title 属性)、data-i18n-aria-label (aria-label 属性) を
- * 付けた要素を現在の言語に書き換える。data-i18n の要素は子要素を持たないこと。
+ * Rewrites elements marked with data-i18n (text content), data-i18n-title (title attribute) or
+ * data-i18n-aria-label (aria-label attribute) into the current language. Elements with data-i18n must not have child elements.
  */
 export function translateDocument(root: ParentNode = document): void {
   document.documentElement.lang = current;

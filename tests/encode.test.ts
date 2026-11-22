@@ -9,7 +9,7 @@ function pattern(w: number, h: number): Uint8Array {
   return out;
 }
 
-/** CrossPoint の Bitmap.cpp と同じ読み方で BMP を各画素のグレー値に戻す */
+/** Decodes a BMP into per-pixel gray values the same way CrossPoint's Bitmap.cpp reads it */
 function decodeBmp(buf: Uint8Array): { width: number; height: number; gray: Uint8Array; nativePalette: boolean } {
   const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   expect(String.fromCharCode(buf[0], buf[1])).toBe('BM');
@@ -55,7 +55,7 @@ function decodeBmp(buf: Uint8Array): { width: number; height: number; gray: Uint
   return { width, height, gray, nativePalette };
 }
 
-/** CrossPoint の Xtc.cpp と同じ読み方で XTH を 0〜255 のグレー値に戻す */
+/** Decodes an XTH into 0–255 gray values the same way CrossPoint's Xtc.cpp reads it */
 function decodeXth(page: Uint8Array): { width: number; height: number; gray: Uint8Array } {
   const view = new DataView(page.buffer, page.byteOffset, page.byteLength);
   expect(view.getUint32(0, true)).toBe(0x00485458);
@@ -87,8 +87,8 @@ const toGray = (levels: Uint8Array) => levels.map((l) => LEVEL_GRAY[l]);
 describe('encodeBmp', () => {
   const depths: BmpBitDepth[] = [2, 4, 8, 24];
   for (const depth of depths) {
-    it(`${depth}bit で全画素が往復できる`, () => {
-      // 幅を 4 の倍数からずらして行パディングも確認する
+    it(`${depth}-bit round-trips every pixel`, () => {
+      // Use a width that is not a multiple of 4 to also check row padding
       const w = 37;
       const h = 11;
       const levels = pattern(w, h);
@@ -102,34 +102,34 @@ describe('encodeBmp', () => {
     });
   }
 
-  it('X3 の 8bit BMP のサイズ', () => {
+  it('size of an 8-bit BMP for the X3', () => {
     expect(bmpFileSize(528, 792, 8)).toBe(14 + 40 + 1024 + 528 * 792);
   });
 });
 
 describe('encodeXth / encodeXtch', () => {
-  it('XTH の画素が CrossPoint の読み方で元に戻る', () => {
+  it('XTH pixels round-trip when read the CrossPoint way', () => {
     const w = 13;
-    const h = 21; // 8 の倍数でない高さで列ごとのパディングを確認する
+    const h = 21; // A height that is not a multiple of 8 checks per-column padding
     const levels = pattern(w, h);
     const decoded = decodeXth(encodeXth(levels, w, h));
     expect(decoded.gray).toEqual(toGray(levels));
   });
 
-  it('レベルと XTH の値の対応 (0 = 白, 1 = 濃いグレー, 2 = 薄いグレー, 3 = 黒)', () => {
-    // 1 列 × 4 行: 上から 黒, 濃いグレー, 薄いグレー, 白
+  it('mapping from levels to XTH values (0 = white, 1 = dark gray, 2 = light gray, 3 = black)', () => {
+    // 1 column × 4 rows: from the top, black, dark gray, light gray, white
     const page = encodeXth(new Uint8Array([0, 1, 2, 3]), 1, 4);
-    // 1 枚目のプレーン (上位ビット) は 1,0,1,0 → 0b1010_0000、2 枚目 (下位ビット) は 1,1,0,0 → 0b1100_0000
+    // The first plane (high bits) is 1,0,1,0 → 0b1010_0000; the second (low bits) is 1,1,0,0 → 0b1100_0000
     expect(page[22]).toBe(0b1010_0000);
     expect(page[23]).toBe(0b1100_0000);
   });
 
-  it('480×800 のプレーンサイズが仕様の例と一致する', () => {
+  it('480×800 plane size matches the example in the specification', () => {
     const page = encodeXth(new Uint8Array(480 * 800), 480, 800);
     expect(page.length - 22).toBe(96000);
   });
 
-  it('XTCH コンテナのヘッダとインデックス', () => {
+  it('XTCH container header and index', () => {
     const w = 528;
     const h = 792;
     const levels = pattern(w, h);
@@ -160,7 +160,7 @@ describe('encodeXth / encodeXtch', () => {
     expect(decoded.gray).toEqual(toGray(levels));
   });
 
-  it('長いタイトルは UTF-8 の文字境界で切り詰める', () => {
+  it('truncates long titles at a UTF-8 character boundary', () => {
     const buf = encodeXtch(new Uint8Array(8), 1, 8, { title: 'あ'.repeat(100) });
     const raw = buf.subarray(56, 56 + 128);
     expect(raw[127]).toBe(0);
