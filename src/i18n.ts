@@ -167,6 +167,10 @@ const en = {
   'weight.900': 'Black',
 
   reset: 'Reset settings',
+
+  'links.aria': 'Links',
+  'links.repository': 'Source code on GitHub',
+  'links.about': 'About the author',
 } satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof en;
@@ -338,6 +342,10 @@ const ja: Record<MessageKey, string> = {
   'weight.900': '最太',
 
   reset: '設定を初期状態に戻す',
+
+  'links.aria': 'リンク',
+  'links.repository': 'GitHub のソースコード',
+  'links.about': '作者について',
 };
 
 const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, ja };
